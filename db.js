@@ -47,7 +47,7 @@ function initTables() {
       )
     `);
 
-    // 2. Email Gönderim Logları Tablosu
+    // 2. Email Gönderim Logları Tablosu (Açılma ve PDF Tıklama Takibi Dahil)
     db.run(`
       CREATE TABLE IF NOT EXISTS email_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,13 +59,34 @@ function initTables() {
         status TEXT NOT NULL,
         error_message TEXT,
         sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        opened INTEGER DEFAULT 0,
+        opened_at DATETIME,
+        open_count INTEGER DEFAULT 0,
+        pdf_clicked INTEGER DEFAULT 0,
+        pdf_clicked_at DATETIME,
+        clicked_catalogue TEXT,
         FOREIGN KEY (lead_id) REFERENCES leads (id) ON DELETE CASCADE
       )
     `);
 
+    // Mevcut tablolara yeni takip sütunlarını güvenle ekle (Migration)
+    const migrations = [
+      'ALTER TABLE email_logs ADD COLUMN opened INTEGER DEFAULT 0',
+      'ALTER TABLE email_logs ADD COLUMN opened_at DATETIME',
+      'ALTER TABLE email_logs ADD COLUMN open_count INTEGER DEFAULT 0',
+      'ALTER TABLE email_logs ADD COLUMN pdf_clicked INTEGER DEFAULT 0',
+      'ALTER TABLE email_logs ADD COLUMN pdf_clicked_at DATETIME',
+      'ALTER TABLE email_logs ADD COLUMN clicked_catalogue TEXT'
+    ];
+    for (const sql of migrations) {
+      db.run(sql, () => {});
+    }
+
     // İndeksler
     db.run(`CREATE INDEX IF NOT EXISTS idx_leads_email ON leads(email)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_email_logs_opened ON email_logs(opened)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_email_logs_pdf ON email_logs(pdf_clicked)`);
 
     // Başlangıç Loglarını Yükle (Eğer boşsa)
     db.get('SELECT COUNT(*) as count FROM email_logs', (err, row) => {
@@ -183,10 +204,34 @@ async function deleteLead(id) {
 
 async function logEmail(lead_id, email, step, subject, attachment_name, status, error_message = null) {
   return await run(
-    `INSERT INTO email_logs (lead_id, email, step, subject, attachment_name, status, error_message, sent_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO email_logs (lead_id, email, step, subject, attachment_name, status, error_message, sent_at, opened, open_count, pdf_clicked)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)`,
     [lead_id, email, step || 1, subject, attachment_name || 'Katalog Bağlantıları', status, error_message, new Date().toISOString()]
   );
+}
+
+async function recordEmailOpen(logId) {
+  const now = new Date().toISOString();
+  return await run(`
+    UPDATE email_logs 
+    SET opened = 1, 
+        opened_at = COALESCE(opened_at, ?), 
+        open_count = COALESCE(open_count, 0) + 1 
+    WHERE id = ?
+  `, [now, logId]);
+}
+
+async function recordPdfClick(logId, catalogueTitle) {
+  const now = new Date().toISOString();
+  return await run(`
+    UPDATE email_logs 
+    SET opened = 1, 
+        opened_at = COALESCE(opened_at, ?), 
+        pdf_clicked = 1, 
+        pdf_clicked_at = COALESCE(pdf_clicked_at, ?), 
+        clicked_catalogue = ? 
+    WHERE id = ?
+  `, [now, now, catalogueTitle || 'Katalog Kitapçığı', logId]);
 }
 
 async function getEmailLogs(limit = 200) {
@@ -202,6 +247,12 @@ async function getEmailLogs(limit = 200) {
         l.status,
         l.error_message,
         l.sent_at,
+        COALESCE(l.opened, 0) as opened,
+        l.opened_at,
+        COALESCE(l.open_count, 0) as open_count,
+        COALESCE(l.pdf_clicked, 0) as pdf_clicked,
+        l.pdf_clicked_at,
+        l.clicked_catalogue,
         COALESCE(leads.company_name, '') as company_name
       FROM email_logs l
       LEFT JOIN leads ON l.lead_id = leads.id
@@ -217,18 +268,63 @@ async function getRecentLogs(limit = 100) {
   return await getEmailLogs(limit);
 }
 
+async function syncLogsAndLeads(clientLeads = [], clientLogs = []) {
+  if (Array.isArray(clientLeads)) {
+    for (const l of clientLeads) {
+      if (!l.email) continue;
+      await run(
+        `INSERT OR IGNORE INTO leads (email, company_name, source_url, category, status, current_step, step1_sent_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [l.email, l.company_name || '', l.source_url || '', l.category || 'general', l.status || 'sent', l.current_step || 0, l.step1_sent_at || null, l.created_at || new Date().toISOString(), l.updated_at || new Date().toISOString()]
+      );
+    }
+  }
+
+  if (Array.isArray(clientLogs)) {
+    for (const log of clientLogs) {
+      if (!log.email) continue;
+      const existing = await get('SELECT id FROM email_logs WHERE email = ? AND sent_at = ?', [log.email, log.sent_at]);
+      if (existing) {
+        if (log.opened || log.pdf_clicked) {
+          await run(
+            `UPDATE email_logs 
+             SET opened = MAX(opened, ?), 
+                 opened_at = COALESCE(opened_at, ?), 
+                 open_count = MAX(open_count, ?), 
+                 pdf_clicked = MAX(pdf_clicked, ?), 
+                 pdf_clicked_at = COALESCE(pdf_clicked_at, ?), 
+                 clicked_catalogue = COALESCE(clicked_catalogue, ?)
+             WHERE id = ?`,
+            [log.opened ? 1 : 0, log.opened_at, log.open_count || 1, log.pdf_clicked ? 1 : 0, log.pdf_clicked_at, log.clicked_catalogue, existing.id]
+          );
+        }
+      } else {
+        await run(
+          `INSERT INTO email_logs (lead_id, email, step, subject, attachment_name, status, error_message, sent_at, opened, opened_at, open_count, pdf_clicked, pdf_clicked_at, clicked_catalogue)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [log.lead_id || null, log.email, log.step || 1, log.subject, log.attachment_name, log.status, log.error_message, log.sent_at || new Date().toISOString(), log.opened ? 1 : 0, log.opened_at || null, log.open_count || 0, log.pdf_clicked ? 1 : 0, log.pdf_clicked_at || null, log.clicked_catalogue || null]
+        );
+      }
+    }
+  }
+}
+
 async function getStats() {
   const total = await get('SELECT COUNT(*) as count FROM leads');
   const notStarted = await get("SELECT COUNT(*) as count FROM leads WHERE status = 'not_started'");
   const sent = await get("SELECT COUNT(*) as count FROM leads WHERE status IN ('sent', 'completed')");
   const failed = await get("SELECT COUNT(*) as count FROM leads WHERE status = 'failed'");
   const totalSent = await get("SELECT COUNT(*) as count FROM email_logs WHERE status = 'success'");
+  const totalOpened = await get("SELECT COUNT(*) as count FROM email_logs WHERE opened = 1");
+  const totalPdfClicked = await get("SELECT COUNT(*) as count FROM email_logs WHERE pdf_clicked = 1");
   return {
     totalLeads: total ? total.count : 0,
     notStarted: notStarted ? notStarted.count : 0,
     sent: sent ? sent.count : 0,
     failed: failed ? failed.count : 0,
-    totalEmailsSent: totalSent ? totalSent.count : 0
+    totalEmailsSent: totalSent ? totalSent.count : 0,
+    totalOpened: totalOpened ? totalOpened.count : 0,
+    totalPdfClicked: totalPdfClicked ? totalPdfClicked.count : 0
   };
 }
 
@@ -244,6 +340,9 @@ module.exports = {
   markLeadSent,
   deleteLead,
   logEmail,
+  recordEmailOpen,
+  recordPdfClick,
+  syncLogsAndLeads,
   getEmailLogs,
   getRecentLogs,
   getStats

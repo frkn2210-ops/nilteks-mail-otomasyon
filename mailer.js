@@ -237,10 +237,15 @@ function generateEmailHtml(config, options = {}) {
 
   // Kitapçık Kartları (Yan Yana Sıralı HTML Tablo Düzeni)
   const bookletCardsHtml = activeCatalogues.map((cat) => {
-    // PDF Linki: Eğer özel URL varsa onu kullan, yoksa yerel sunucu endpoint'i
-    const pdfUrl = (cat.customUrl && cat.customUrl.trim().startsWith('http'))
+    // Hedef PDF Linki: Eğer özel URL varsa onu kullan, yoksa yerel sunucu endpoint'i
+    const targetPdfUrl = (cat.customUrl && cat.customUrl.trim().startsWith('http'))
       ? cat.customUrl.trim()
       : `${baseUrl}/catalogues/view/${encodeURIComponent(cat.filename)}`;
+
+    // Tıklanma Takibi: Eğer trackingLogId varsa takip yönlendirmesi ekle
+    const pdfUrl = options.trackingLogId
+      ? `${baseUrl}/api/track/click/${options.trackingLogId}/${encodeURIComponent(cat.id || cat.filename)}?to=${encodeURIComponent(targetPdfUrl)}`
+      : targetPdfUrl;
 
     // Kapak Görseli URL'si
     const coverUrl = `${baseUrl}/api/covers/${encodeURIComponent(cat.coverImage)}`;
@@ -337,6 +342,7 @@ function generateEmailHtml(config, options = {}) {
       <p style="margin: 0; color: #94a3b8;">Email: furkan@nilteks.com.tr | furkan@niltex.com.tr</p>
     </div>
   </div>
+  ${options.trackingLogId ? `<img src="${baseUrl}/api/track/open/${options.trackingLogId}" width="1" height="1" alt="" style="display:none;width:1px;height:1px;max-height:0;max-width:0;opacity:0;border:none;" />` : ''}
 </body>
 </html>
   `.trim();
@@ -369,10 +375,10 @@ ${config.closingText}
 // ========================================================
 
 // 1. Doğrudan Yüksek Hızlı Kurumsal Gönderim (Varsayılan - Eski Outlook İhtiyacı Yok)
-async function sendSingleCampaignEmail(toEmail, customConfig = null) {
+async function sendSingleCampaignEmail(toEmail, customConfig = null, options = {}) {
   const config = customConfig || getCampaignConfig();
   const subject = config.subject || "Discover Nil Home | Your Home Textile Manufacturing Partner in Türkiye";
-  const htmlContent = generateEmailHtml(config);
+  const htmlContent = generateEmailHtml(config, options);
   const plainText = generatePlainText(config);
 
   console.log(`✉️ [Modern Gönderim] Tanıtım maili iletiliyor -> ${toEmail}`);
@@ -399,10 +405,10 @@ async function sendSingleCampaignEmail(toEmail, customConfig = null) {
 }
 
 // 2. Yeni Outlook'ta Aç / Taslak Oluştur (Mac Yeni Düzen Outlook ile Doğrudan Uyumlu)
-async function openInNewOutlook(toEmail, customConfig = null) {
+async function openInNewOutlook(toEmail, customConfig = null, options = {}) {
   const config = customConfig || getCampaignConfig();
   const subject = config.subject || "Discover Nil Home | Your Home Textile Manufacturing Partner in Türkiye";
-  const htmlContent = generateEmailHtml(config);
+  const htmlContent = generateEmailHtml(config, options);
   const sender = getSenderInfo();
 
   // RFC 822 formatında standart .eml oluştur

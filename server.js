@@ -46,25 +46,173 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // URL Normalizer (Vercel Serverless Function & Local uyumu)
 app.use((req, res, next) => {
-  // Root veya index.html istekleri API'ye dönüştürülmemeli
-  if (req.url === '/' || req.url === '' || req.url.startsWith('/index.html')) {
+  // Root, index.html veya login.html istekleri API'ye dönüştürülmemeli
+  if (
+    req.url === '/' ||
+    req.url === '' ||
+    req.url.startsWith('/index.html') ||
+    req.url.startsWith('/login.html') ||
+    req.url.startsWith('/catalogues')
+  ) {
     return next();
   }
   if (req.url === '/api' || req.url === '/api/') {
     req.url = '/api/status';
-  } else if (!req.url.startsWith('/api') && !req.url.startsWith('/catalogues')) {
+  } else if (!req.url.startsWith('/api')) {
     req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
   }
   next();
 });
 
-// Statik panel ve katalog dosyalarını sun
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(path.join(__dirname, 'panel')));
+// ========================================================
+// YÖNETİCİ KİMLİK DOĞRULAMA (ADMIN AUTHENTICATION)
+// Kullanıcı adı: furkan | Şifre: Furkan2210.
+// ========================================================
+const AUTH_USER = 'furkan';
+const AUTH_PASS = 'Furkan2210.';
+const AUTH_SECRET = 'nilteks_secret_token_2026';
 
-// Ana sayfa yönlendirmesi
+function getAuthTokenFromReq(req) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7).trim();
+  }
+  if (req.headers.cookie) {
+    const match = req.headers.cookie.match(/(?:^|;\s*)nilteks_auth=([^;]+)/);
+    if (match) return decodeURIComponent(match[1]);
+  }
+  return null;
+}
+
+function verifyAuthToken(token) {
+  if (!token) return false;
+  try {
+    const decoded = Buffer.from(token, 'base64').toString('utf8');
+    return decoded === `${AUTH_USER}:${AUTH_SECRET}`;
+  } catch {
+    return false;
+  }
+}
+
+function generateAuthToken() {
+  return Buffer.from(`${AUTH_USER}:${AUTH_SECRET}`).toString('base64');
+}
+
+// 0. Ana sayfa / Giriş Kapısı (Şifresiz kimse panel içeriğini göremez)
 app.get(['/', '/index.html'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  const token = getAuthTokenFromReq(req);
+  if (verifyAuthToken(token)) {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  } else {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+  }
+});
+
+// Giriş sayfası doğrudan çağrılırsa
+app.get('/login.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// Statik panel ve katalog dosyalarını sun (index: false ile yetkisiz index.html açılması önlenir)
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+app.use(express.static(path.join(__dirname, 'panel'), { index: false }));
+
+// Kimlik Doğrulama Rotaları (Açık - Herkes erişebilir)
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body || {};
+  if (username === AUTH_USER && password === AUTH_PASS) {
+    const token = generateAuthToken();
+    res.json({ success: true, token, user: { username: AUTH_USER } });
+  } else {
+    res.status(401).json({ success: false, error: 'Kullanıcı adı veya şifre hatalı!' });
+  }
+});
+
+app.get('/api/auth/check', (req, res) => {
+  const token = getAuthTokenFromReq(req);
+  if (verifyAuthToken(token)) {
+    return res.json({ success: true, authenticated: true, user: { username: AUTH_USER } });
+  }
+  res.json({ success: false, authenticated: false });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  res.json({ success: true, message: 'Çıkış yapıldı.' });
+});
+
+// ========================================================
+// E-POSTA VE PDF AÇILMA / İNCELENME TAKİBİ (HERKESE AÇIK)
+// ========================================================
+
+// 1. E-Posta Okundu Takip Pikseli (1x1 Şeffaf GIF)
+app.get('/api/track/open/:logId', async (req, res) => {
+  try {
+    const logId = parseInt(req.params.logId, 10);
+    if (!isNaN(logId) && logId > 0) {
+      await db.recordEmailOpen(logId);
+    }
+  } catch (err) {
+    console.warn('Track open error:', err.message);
+  }
+
+  const pixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+  res.set({
+    'Content-Type': 'image/gif',
+    'Content-Length': pixel.length,
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  });
+  res.send(pixel);
+});
+
+// 2. Kitapçık / PDF Tıklama Yönlendirmesi
+app.get('/api/track/click/:logId/:catId', async (req, res) => {
+  const logId = parseInt(req.params.logId, 10);
+  const catId = req.params.catId;
+  const target = req.query.to || `/catalogues/view/${encodeURIComponent(catId)}`;
+
+  try {
+    const config = mailer.getCampaignConfig();
+    const cat = (config.catalogues || []).find(c => c.id === catId || c.filename === catId);
+    const catTitle = cat ? cat.title : catId;
+    if (!isNaN(logId) && logId > 0) {
+      await db.recordPdfClick(logId, catTitle);
+    }
+  } catch (err) {
+    console.warn('Track click error:', err.message);
+  }
+
+  res.redirect(target);
+});
+
+// ========================================================
+// KORUNAN API GÜVENLİK DUVARI (GİRİŞ ŞARTI)
+// ========================================================
+app.use('/api', (req, res, next) => {
+  const publicPrefixes = [
+    '/api/auth/',
+    '/api/covers/',
+    '/api/catalogues/view/',
+    '/api/track/'
+  ];
+  const urlPath = req.url || '';
+  const original = req.originalUrl || '';
+
+  const isPublic = publicPrefixes.some(p => urlPath.startsWith(p) || original.startsWith(p));
+  if (isPublic) {
+    return next();
+  }
+
+  const token = getAuthTokenFromReq(req);
+  if (!verifyAuthToken(token)) {
+    return res.status(401).json({
+      success: false,
+      error: 'Bu işlem için yetkili yönetici girişi yapmanız gerekmektedir.',
+      requireLogin: true
+    });
+  }
+  next();
 });
 
 // API Rotaları
@@ -248,12 +396,15 @@ app.delete('/api/catalogues/:id', (req, res) => {
   }
 });
 
-// 10. TEK TANITIM E-POSTASINI GÖNDER (Modern Kurumsal Motor)
+// 10. TEK TANITIM E-POSTASINI GÖNDER (Modern Kurumsal Motor & Takip Entegrasyonlu)
 app.post('/api/campaign/send', async (req, res) => {
   const { email, company_name, source_url, category } = req.body;
   if (!email || !scraper.isValidEmail(email)) {
     return res.status(400).json({ success: false, error: 'Lütfen geçerli bir e-posta adresi girin.' });
   }
+
+  const config = mailer.getCampaignConfig();
+  let logId = null;
 
   try {
     const lead = await db.addOrGetLead({
@@ -263,53 +414,89 @@ app.post('/api/campaign/send', async (req, res) => {
       category: category || 'İletişim / Bilgi'
     });
 
-    const result = await mailer.sendSingleCampaignEmail(lead.email);
+    // Gönderim öncesi takip kaydı oluştur (Log ID elde etmek için)
+    const logRes = await db.run(
+      `INSERT INTO email_logs (lead_id, email, step, subject, attachment_name, status, sent_at, opened, open_count, pdf_clicked)
+       VALUES (?, ?, 1, ?, 'Katalog Kitapçıkları', 'pending', CURRENT_TIMESTAMP, 0, 0, 0)`,
+      [lead.id, lead.email, config.subject || 'Nilteks Digital Catalogue']
+    );
+    logId = logRes.lastID;
 
+    // Maili takip kimliği ile gönder (Okundu ve PDF tıklama takipli)
+    const result = await mailer.sendSingleCampaignEmail(lead.email, config, { trackingLogId: logId });
+
+    await db.run(
+      `UPDATE email_logs SET status = 'success', subject = ? WHERE id = ?`,
+      [result.subject, logId]
+    );
     await db.markLeadSent(lead.id, result.subject);
-    await db.logEmail(lead.id, lead.email, 1, result.subject, 'Katalog Kitapçık Bağlantıları', 'success', null);
 
     const updatedLead = await db.getLeadById(lead.id);
+    const updatedLog = await db.get('SELECT * FROM email_logs WHERE id = ?', [logId]);
+
     res.json({
       success: true,
       message: `Tanıtım e-postası başarıyla gönderildi -> ${lead.email}`,
       lead: updatedLead,
+      log: updatedLog,
       result
     });
   } catch (err) {
     console.error('Gönderim hatası:', err.message);
-    try {
-      const lead = await db.addOrGetLead({ email, company_name });
-      await db.updateLead(lead.id, { status: 'failed', last_error: err.message });
-      await db.logEmail(lead.id, email, 1, 'Tanıtım E-Postası', 'Katalog Bağlantıları', 'failed', err.message);
-    } catch {}
+    if (logId) {
+      try {
+        await db.run(
+          `UPDATE email_logs SET status = 'failed', error_message = ? WHERE id = ?`,
+          [err.message, logId]
+        );
+      } catch {}
+    } else {
+      try {
+        const lead = await db.addOrGetLead({ email, company_name });
+        await db.updateLead(lead.id, { status: 'failed', last_error: err.message });
+        await db.logEmail(lead.id, email, 1, config.subject || 'Tanıtım E-Postası', 'Katalog Bağlantıları', 'failed', err.message);
+      } catch {}
+    }
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// 11. Yeni Düzen Outlook'ta Aç / Taslak Oluştur
+// 11. Yeni Düzen Outlook'ta Aç / Taslak Oluştur (Takip Entegrasyonlu)
 app.post('/api/campaign/open-outlook', async (req, res) => {
   const { email, company_name } = req.body;
   if (!email || !scraper.isValidEmail(email)) {
     return res.status(400).json({ success: false, error: 'Lütfen geçerli bir e-posta adresi girin.' });
   }
 
+  const config = mailer.getCampaignConfig();
+
   try {
-    const result = await mailer.openInNewOutlook(email);
-    try {
-      const lead = await db.addOrGetLead({
-        email,
-        company_name: company_name || '',
-        source_url: 'Outlook Masaüstü',
-        category: 'İletişim / Bilgi'
-      });
-      await db.markLeadSent(lead.id, 'Outlook Taslağı Hazırlandı');
-      await db.logEmail(lead.id, lead.email, 1, 'Outlook (Yeni Düzen) Taslağı Açıldı', 'Katalog Kitapçıkları', 'success', null);
-    } catch {}
+    const lead = await db.addOrGetLead({
+      email,
+      company_name: company_name || '',
+      source_url: 'Outlook Masaüstü',
+      category: 'İletişim / Bilgi'
+    });
+
+    const logRes = await db.run(
+      `INSERT INTO email_logs (lead_id, email, step, subject, attachment_name, status, sent_at, opened, open_count, pdf_clicked)
+       VALUES (?, ?, 1, ?, 'Katalog Kitapçıkları', 'success', CURRENT_TIMESTAMP, 0, 0, 0)`,
+      [lead.id, lead.email, config.subject || 'Outlook Taslağı Hazırlandı']
+    );
+    const logId = logRes.lastID;
+
+    const result = await mailer.openInNewOutlook(email, config, { trackingLogId: logId });
+    await db.markLeadSent(lead.id, 'Outlook Taslağı Hazırlandı');
+
+    const updatedLead = await db.getLeadById(lead.id);
+    const updatedLog = await db.get('SELECT * FROM email_logs WHERE id = ?', [logId]);
 
     res.json({
       success: true,
       message: `E-posta Microsoft Outlook (Yeni Düzen) uygulamasında açıldı. İnceleyip gönderebilirsiniz.`,
-      result
+      result,
+      lead: updatedLead,
+      log: updatedLog
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -421,6 +608,19 @@ app.get('/api/logs', async (req, res) => {
   try {
     const logs = await db.getEmailLogs(200);
     res.json({ success: true, logs });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 18. Çift Yönlü İstemci-Sunucu Veri Senkronizasyonu (Kalıcı Veri Garantisi)
+app.post('/api/logs/sync', async (req, res) => {
+  try {
+    const { leads, logs } = req.body || {};
+    await db.syncLogsAndLeads(leads, logs);
+    const updatedLogs = await db.getEmailLogs(200);
+    const updatedLeads = await db.getAllLeads();
+    res.json({ success: true, logs: updatedLogs, leads: updatedLeads });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
