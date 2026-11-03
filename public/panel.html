@@ -943,7 +943,11 @@
           document.getElementById('cfgIntroText').value = currentConfig.introText || '';
           document.getElementById('cfgClosingText').value = currentConfig.closingText || '';
           if (document.getElementById('cfgPublicBaseUrl')) {
-            document.getElementById('cfgPublicBaseUrl').value = currentConfig.publicBaseUrl || '';
+            const pubUrl = (currentConfig.publicBaseUrl && !currentConfig.publicBaseUrl.includes('localhost'))
+              ? currentConfig.publicBaseUrl
+              : 'https://nilteks-mail-otomasyon.vercel.app';
+            document.getElementById('cfgPublicBaseUrl').value = pubUrl;
+            currentConfig.publicBaseUrl = pubUrl;
           }
           renderCataloguesList(currentConfig.catalogues || []);
           document.getElementById('statActiveCatalogues').textContent = (currentConfig.catalogues || []).filter(c => c.enabled !== false).length;
@@ -1119,7 +1123,14 @@
       currentConfig.introText = introText;
       currentConfig.closingText = closingText;
       const pubUrlInput = document.getElementById('cfgPublicBaseUrl');
-      if (pubUrlInput) currentConfig.publicBaseUrl = pubUrlInput.value.trim();
+      if (pubUrlInput) {
+        let pubUrl = pubUrlInput.value.trim();
+        if (!pubUrl || pubUrl.includes('localhost')) {
+          pubUrl = 'https://nilteks-mail-otomasyon.vercel.app';
+          pubUrlInput.value = pubUrl;
+        }
+        currentConfig.publicBaseUrl = pubUrl;
+      }
 
       btn.disabled = true;
       btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Kaydediliyor...</span>`;
@@ -1161,7 +1172,13 @@
       currentConfig.introText = document.getElementById('cfgIntroText').value.trim();
       currentConfig.closingText = document.getElementById('cfgClosingText').value.trim();
       const pubUrlInput = document.getElementById('cfgPublicBaseUrl');
-      if (pubUrlInput) currentConfig.publicBaseUrl = pubUrlInput.value.trim();
+      if (pubUrlInput) {
+        let pubUrl = pubUrlInput.value.trim();
+        if (!pubUrl || pubUrl.includes('localhost')) {
+          pubUrl = 'https://nilteks-mail-otomasyon.vercel.app';
+        }
+        currentConfig.publicBaseUrl = pubUrl;
+      }
 
       try {
         await fetch('/api/campaign/config', {

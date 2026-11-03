@@ -174,17 +174,25 @@ app.get(['/api/track/open/:logId', '/track/open/:logId'], async (req, res) => {
 app.get(['/api/track/click/:logId/:catId', '/track/click/:logId/:catId'], async (req, res) => {
   const logId = parseInt(req.params.logId, 10);
   const catId = req.params.catId;
-  const target = req.query.to || `/catalogues/view/${encodeURIComponent(catId)}`;
 
+  let target = req.query.to;
   try {
     const config = mailer.getCampaignConfig();
     const cat = (config.catalogues || []).find(c => c.id === catId || c.filename === catId);
     const catTitle = cat ? cat.title : catId;
+    const catFilename = cat ? cat.filename : catId;
+    if (!target) {
+      target = `/catalogues/view/${encodeURIComponent(catFilename)}`;
+    }
     if (!isNaN(logId) && logId > 0) {
       await db.recordPdfClick(logId, catTitle);
     }
   } catch (err) {
     console.warn('Track click error:', err.message);
+  }
+
+  if (!target) {
+    target = `/catalogues/view/${encodeURIComponent(catId)}`;
   }
 
   res.redirect(target);

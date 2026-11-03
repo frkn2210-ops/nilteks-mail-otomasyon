@@ -97,7 +97,10 @@ Email: furkan@nilteks.com.tr`,
 };
 
 // Kampanya Konfigürasyonunu Yükle
+const PRODUCTION_VERCEL_URL = 'https://nilteks-mail-otomasyon.vercel.app';
+
 function getCampaignConfig() {
+  let loaded = null;
   try {
     if (isVercel && !fs.existsSync(CONFIG_PATH)) {
       const src = path.join(__dirname, 'data', 'campaign_config.json');
@@ -107,37 +110,51 @@ function getCampaignConfig() {
     }
     if (fs.existsSync(CONFIG_PATH)) {
       const raw = fs.readFileSync(CONFIG_PATH, 'utf8');
-      return JSON.parse(raw);
-    }
-    const fallbackSrc = path.join(__dirname, 'data', 'campaign_config.json');
-    if (fs.existsSync(fallbackSrc)) {
-      return JSON.parse(fs.readFileSync(fallbackSrc, 'utf8'));
+      loaded = JSON.parse(raw);
+    } else {
+      const fallbackSrc = path.join(__dirname, 'data', 'campaign_config.json');
+      if (fs.existsSync(fallbackSrc)) {
+        loaded = JSON.parse(fs.readFileSync(fallbackSrc, 'utf8'));
+      }
     }
   } catch (err) {
     console.error('Konfigürasyon okunamadı, varsayılan yükleniyor:', err.message);
   }
-  saveCampaignConfig(DEFAULT_CAMPAIGN_CONFIG);
-  return DEFAULT_CAMPAIGN_CONFIG;
+  if (!loaded) {
+    loaded = JSON.parse(JSON.stringify(DEFAULT_CAMPAIGN_CONFIG));
+    saveCampaignConfig(loaded);
+  }
+
+  // Ensure publicBaseUrl always points to production Vercel URL, never localhost
+  if (!loaded.publicBaseUrl || loaded.publicBaseUrl.includes('localhost')) {
+    loaded.publicBaseUrl = PRODUCTION_VERCEL_URL;
+  }
+  return loaded;
 }
 
-// Genel Erişim URL'sini Çözümle (Vercel veya Özel Domain)
-function resolveBaseUrl(config, options = {}) {
-  if (options.baseUrl) return options.baseUrl.replace(/\/$/, '');
-  if (config.publicBaseUrl && config.publicBaseUrl.startsWith('http') && !config.publicBaseUrl.includes('localhost')) {
+// Genel Erişim URL'sini Çözümle (Vercel Prodüksiyon - Asla Localhost Olmaz)
+function resolveBaseUrl(config = {}, options = {}) {
+  if (options.baseUrl && typeof options.baseUrl === 'string' && options.baseUrl.startsWith('http') && !options.baseUrl.includes('localhost')) {
+    return options.baseUrl.replace(/\/$/, '');
+  }
+  if (config.publicBaseUrl && typeof config.publicBaseUrl === 'string' && config.publicBaseUrl.startsWith('http') && !config.publicBaseUrl.includes('localhost')) {
     return config.publicBaseUrl.replace(/\/$/, '');
   }
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
     return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   }
-  if (process.env.VERCEL_URL) {
+  if (process.env.VERCEL_URL && !process.env.VERCEL_URL.includes('localhost')) {
     return `https://${process.env.VERCEL_URL}`;
   }
-  return (config.publicBaseUrl || 'http://localhost:4000').replace(/\/$/, '');
+  return PRODUCTION_VERCEL_URL;
 }
 
 // Kampanya Konfigürasyonunu Kaydet
 function saveCampaignConfig(config) {
   try {
+    if (!config.publicBaseUrl || config.publicBaseUrl.includes('localhost')) {
+      config.publicBaseUrl = PRODUCTION_VERCEL_URL;
+    }
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
     return config;
   } catch (err) {
