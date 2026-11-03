@@ -144,11 +144,18 @@
       lucide.createIcons();
 
       try {
-        const res = await fetch('/api/auth/login', {
+        let res = await fetch('/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
         });
+        if (res.status === 404) {
+          res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+          });
+        }
         let data;
         try {
           data = await res.json();
@@ -179,9 +186,14 @@
       const token = localStorage.getItem('nilteks_auth_token') || getCookie('nilteks_auth');
       if (token) {
         try {
-          const res = await fetch('/api/auth/check', {
+          let res = await fetch('/api/check', {
             headers: { 'Authorization': `Bearer ${token}` }
           });
+          if (res.status === 404) {
+            res = await fetch('/api/auth/check', {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+          }
           const data = await res.json();
           if (data.authenticated) {
             window.location.href = '/panel';
