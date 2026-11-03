@@ -13,6 +13,25 @@
       const token = localStorage.getItem('nilteks_auth_token') || cookieToken;
       if (!token) {
         window.location.replace('/');
+      } else {
+        // Global fetch interceptor: Tüm API isteklerine Bearer token ekle
+        const _origFetch = window.fetch;
+        window.fetch = function(url, options = {}) {
+          options = options || {};
+          options.headers = options.headers || {};
+          if (typeof url === 'string' && url.startsWith('/api')) {
+            if (options.headers instanceof Headers) {
+              if (!options.headers.has('Authorization')) options.headers.set('Authorization', 'Bearer ' + token);
+            } else if (Array.isArray(options.headers)) {
+              if (!options.headers.some(h => h[0].toLowerCase() === 'authorization')) {
+                options.headers.push(['Authorization', 'Bearer ' + token]);
+              }
+            } else {
+              if (!options.headers['Authorization']) options.headers['Authorization'] = 'Bearer ' + token;
+            }
+          }
+          return _origFetch(url, options);
+        };
       }
     })();
   </script>
@@ -829,10 +848,10 @@
         };
       }
       const response = await originalFetch(url, opts);
-      if (response.status === 401 && !url.includes('/api/auth/')) {
+      if (response.status === 401 && !url.includes('/api/auth/') && !url.includes('/api/login') && !url.includes('/api/check')) {
         localStorage.removeItem('nilteks_auth_token');
         document.cookie = 'nilteks_auth=; path=/; max-age=0';
-        window.location.href = '/login.html';
+        window.location.href = '/';
       }
       return response;
     };
@@ -842,7 +861,7 @@
         localStorage.removeItem('nilteks_auth_token');
         document.cookie = 'nilteks_auth=; path=/; max-age=0';
         fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
-          window.location.href = '/login.html';
+          window.location.href = '/';
         });
       }
     }

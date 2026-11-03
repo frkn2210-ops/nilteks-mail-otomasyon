@@ -46,21 +46,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // URL Normalizer (Vercel Serverless Function & Local uyumu)
 app.use((req, res, next) => {
-  // Root, statik html sayfaları ve katalog istekleri API'ye dönüştürülmemeli
-  if (
-    req.url === '/' ||
-    req.url === '' ||
-    req.url.startsWith('/index.html') ||
-    req.url.startsWith('/login.html') ||
-    req.url.startsWith('/panel.html') ||
-    req.url.startsWith('/panel') ||
-    req.url.startsWith('/catalogues')
-  ) {
-    return next();
-  }
-  if (req.url === '/api' || req.url === '/api/') {
-    req.url = '/api/status';
-  } else if (!req.url.startsWith('/api')) {
+  const orig = req.originalUrl || req.headers['x-matched-path'] || req.headers['x-now-route-matches'] || '';
+  if (orig && orig.startsWith('/api') && (!req.url || !req.url.startsWith('/api'))) {
+    req.url = orig;
+  } else if (req.url && !req.url.startsWith('/api') && req.url !== '/' && req.url !== '' && !req.url.startsWith('/index') && !req.url.startsWith('/login') && !req.url.startsWith('/panel') && !req.url.startsWith('/catalogues')) {
     req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
   }
   if (req.url.startsWith('/api/api/')) {
@@ -206,17 +195,23 @@ app.get(['/api/track/click/:logId/:catId', '/track/click/:logId/:catId'], async 
 // ========================================================
 app.use((req, res, next) => {
   const publicPrefixes = [
-    '/api/auth/',
-    '/auth/',
-    '/api/covers/',
-    '/covers/',
-    '/api/catalogues/view/',
-    '/catalogues/view/',
-    '/api/track/',
-    '/track/'
+    '/api/auth',
+    '/auth',
+    '/api/login',
+    '/login',
+    '/api/check',
+    '/check',
+    '/api/logout',
+    '/logout',
+    '/api/covers',
+    '/covers',
+    '/api/catalogues',
+    '/catalogues',
+    '/api/track',
+    '/track'
   ];
   const urlPath = req.url || '';
-  const original = req.originalUrl || '';
+  const original = req.originalUrl || req.headers['x-matched-path'] || '';
 
   const isPublic = publicPrefixes.some(p => urlPath.startsWith(p) || original.startsWith(p));
   if (isPublic) {
@@ -224,7 +219,7 @@ app.use((req, res, next) => {
   }
 
   // Sadece API veya veri isteklerini filtrele
-  const isProtectedApi = urlPath.startsWith('/api') || ['status', 'campaign', 'mail', 'scrape', 'ai-hunter', 'leads', 'logs'].some(k => urlPath.includes(`/${k}`));
+  const isProtectedApi = urlPath.startsWith('/api') || original.startsWith('/api') || ['status', 'campaign', 'mail', 'scrape', 'ai-hunter', 'leads', 'logs'].some(k => urlPath.includes(`/${k}`) || original.includes(`/${k}`));
   if (!isProtectedApi) {
     return next();
   }
