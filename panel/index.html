@@ -94,8 +94,9 @@
       </button>
 
       <button onclick="switchTab('tab-logs')" id="nav-logs" class="tab-btn px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-t-lg transition flex items-center gap-2 border-b-2 border-transparent text-slate-300 hover:text-white hover:bg-brand-800/30 whitespace-nowrap">
-        <i data-lucide="history" class="w-4 h-4"></i>
-        <span>Gönderim Geçmişi & Loglar</span>
+        <i data-lucide="send" class="w-4 h-4 text-emerald-400"></i>
+        <span>Gönderilen Mailler & Geçmiş</span>
+        <span id="navLogsBadge" class="ml-1 bg-emerald-950 border border-emerald-500 text-emerald-200 text-[11px] px-2 py-0.5 rounded-full font-bold">0</span>
       </button>
     </div>
   </header>
@@ -362,22 +363,25 @@
         </form>
       </div>
 
-      <!-- WEB SİTESİ TARAMA ALANI -->
+      <!-- WEB SİTESİ TARAMA & AI KARAR VERİCİ BULMA ALANI -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
         <div class="max-w-3xl">
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
             <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
               <i data-lucide="globe" class="w-5 h-5 text-brand-700"></i>
-              <span>Web Sitesi URL'sinden E-Posta Adreslerini Tara</span>
+              <span>Web Sitesi URL'sinden E-Posta Adreslerini Tara & AI ile Bul</span>
             </h2>
-            <span class="bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2 py-0.5 rounded-full">Derin Tarayıcı</span>
+            <span class="bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-300">Gelişmiş & Temiz Sonuçlar</span>
+            <span class="bg-purple-100 text-purple-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-purple-300 flex items-center gap-1">
+              <i data-lucide="sparkles" class="w-3 h-3 text-purple-600"></i> AI Karar Verici Avcısı
+            </span>
           </div>
           <p class="text-sm text-slate-500 mt-1">
-            Firmanın web sitesi adresini girin. Sistem ana sayfa ile birlikte İletişim, Satın Alma, Impressum sayfalarını tarar; gizlenmiş tüm e-postaları listeler.
+            Firmanın web sitesi adresini girin. <strong>"Adresleri Tara"</strong> ile sadece doğrulanmış kurumsal e-postaları bulun veya <strong>"AI ile Tara"</strong> butonuyla satın alma, ithalat ve şirket yöneticilerinin doğrudan maillerini keşfedin/tahmin edin.
           </p>
         </div>
 
-        <form id="scrapeForm" onsubmit="handleScrape(event)" class="mt-4 flex flex-col sm:flex-row gap-3">
+        <form id="scrapeForm" onsubmit="handleScrape(event)" class="mt-4 flex flex-col sm:flex-row gap-2.5">
           <div class="relative flex-1">
             <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
               <i data-lucide="link" class="w-4 h-4"></i>
@@ -385,7 +389,7 @@
             <input 
               type="text" 
               id="targetUrl" 
-              placeholder="Örn: firmadisi.de veya https://example-hoteltextile.com" 
+              placeholder="Örn: niltex.com.tr veya https://example-hoteltextile.de" 
               class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent text-sm transition shadow-sm"
               required
             />
@@ -393,22 +397,129 @@
           <button 
             type="submit" 
             id="scrapeBtn"
-            class="bg-brand-700 hover:bg-brand-800 text-white font-semibold px-6 py-2.5 rounded-xl text-sm shadow-md transition flex items-center justify-center gap-2 whitespace-nowrap"
+            class="bg-brand-700 hover:bg-brand-800 text-white font-semibold px-5 py-2.5 rounded-xl text-sm shadow-md transition flex items-center justify-center gap-1.5 whitespace-nowrap"
+            title="Sitedeki iletişim ve kurumsal sayfaları derinlemesine tarar, sadece gerçek e-postaları getirir"
           >
             <i data-lucide="search" class="w-4 h-4"></i>
             <span>Adresleri Tara</span>
           </button>
+          <button 
+            type="button" 
+            onclick="handleAiHunt()"
+            id="aiHuntBtn"
+            class="bg-gradient-to-r from-purple-600 via-indigo-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white font-bold px-5 py-2.5 rounded-xl text-sm shadow-md transition flex items-center justify-center gap-1.5 whitespace-nowrap"
+            title="Yapay zeka ile satın alma ve karar vericilerin doğrudan e-postalarını keşfet veya tahmin et"
+          >
+            <i data-lucide="sparkles" class="w-4 h-4 text-amber-300"></i>
+            <span>AI ile Karar Verici & Mail Bul</span>
+          </button>
         </form>
+
+        <!-- Opsiyonel AI Kişi Arama Çekmecesi -->
+        <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+          <button 
+            type="button" 
+            onclick="toggleAiCustomPersonBox()" 
+            class="text-xs font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-1 transition"
+          >
+            <i data-lucide="user-search" class="w-3.5 h-3.5"></i>
+            <span>+ Belirli Bir Yetkili İsmi veya LinkedIn Kişisi İçin E-Posta Üret (İsteğe Bağlı)</span>
+          </button>
+        </div>
+
+        <div id="aiCustomPersonBox" class="hidden mt-3 p-3.5 bg-purple-50/70 border border-purple-200 rounded-xl space-y-2">
+          <p class="text-xs text-purple-900 font-medium">
+            Örn: LinkedIn'den veya fuardan bulduğunuz bir yetkilinin adını girin. AI, firmanın alan adına göre kurumsal e-posta formatını (Örn: <em>furkan@niltex.com.tr</em>) otomatik üretsin:
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+            <div class="sm:col-span-6">
+              <input 
+                type="text" 
+                id="aiPersonName" 
+                placeholder="Yetkili Adı & Soyadı (Örn: Furkan Aydın)" 
+                class="w-full px-3 py-2 rounded-lg border border-purple-300 text-xs focus:ring-2 focus:ring-purple-400 focus:outline-none bg-white"
+              />
+            </div>
+            <div class="sm:col-span-4">
+              <select 
+                id="aiPersonRole" 
+                class="w-full px-3 py-2 rounded-lg border border-purple-300 text-xs focus:ring-2 focus:ring-purple-400 focus:outline-none bg-white"
+              >
+                <option value="Satın Alma / Purchasing Director">Satın Alma / Purchasing Director</option>
+                <option value="Kategori Yöneticisi (Buyer)">Kategori Yöneticisi (Buyer)</option>
+                <option value="Genel Müdür / CEO / Owner">Genel Müdür / CEO / Owner</option>
+                <option value="Dış Ticaret / İthalat Müdürü">Dış Ticaret / İthalat Müdürü</option>
+                <option value="B2B & Toptan Sipariş Sorumlusu">B2B & Toptan Sipariş Sorumlusu</option>
+              </select>
+            </div>
+            <div class="sm:col-span-2">
+              <button 
+                type="button" 
+                onclick="handleAiHunt()" 
+                class="w-full bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs py-2 px-3 rounded-lg transition flex items-center justify-center gap-1"
+              >
+                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                <span>Tahmin Et</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Tarama Sonuçları Tablosu -->
+      <!-- 1. AI HUNTER SONUÇ KARTI -->
+      <div id="aiHunterResultsCard" class="hidden bg-gradient-to-br from-white via-purple-50/20 to-teal-50/30 rounded-2xl border-2 border-purple-200 shadow-lg overflow-hidden">
+        <div class="p-5 border-b border-purple-200 flex flex-wrap items-center justify-between gap-3 bg-purple-100/40">
+          <div>
+            <h3 class="font-extrabold text-slate-900 text-base flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-5 h-5 text-purple-600"></i>
+              <span>AI Karar Verici & E-Posta Tahminleri</span>
+              <span id="aiCompanyTitle" class="ml-2 text-purple-900 font-bold bg-white px-2.5 py-0.5 rounded-full border border-purple-200 text-xs"></span>
+            </h3>
+            <p class="text-xs text-purple-800/80 mt-1 flex items-center gap-2 flex-wrap">
+              <span>Kurumsal Desen:</span>
+              <code id="aiDomainPatternBadge" class="bg-purple-200/70 text-purple-950 font-bold px-2 py-0.5 rounded text-[11px]"></code>
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <a 
+              id="aiLinkedinSearchBtn" 
+              href="#" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1.5"
+              title="Google üzerinden firmanın LinkedIn'deki satın alma ve karar vericilerini ara"
+            >
+              <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+              <span>LinkedIn'de Yetkilileri Ara</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-purple-100/50 border-b border-purple-200 text-xs font-bold text-purple-900 uppercase tracking-wider">
+                <th class="py-3 px-4">Kişi / Departman</th>
+                <th class="py-3 px-4">Tahmin Edilen E-Posta</th>
+                <th class="py-3 px-4">Güven & Desen</th>
+                <th class="py-3 px-4 text-right">Eylem</th>
+              </tr>
+            </thead>
+            <tbody id="aiHunterTableBody" class="divide-y divide-purple-100 text-sm">
+              <!-- Dinamik AI Sonuçları -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 2. STANDART TEMİZ TARAMA SONUÇLARI KARTI -->
       <div id="scrapeResultsCard" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
           <div>
             <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
               <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i>
-              <span>Bulunan E-posta Adresleri</span>
-              <span id="scrapedCountBadge" class="ml-2 bg-brand-100 text-brand-800 text-xs px-2.5 py-0.5 rounded-full font-bold">0 Adres</span>
+              <span>Bulunan Doğrulanmış E-posta Adresleri</span>
+              <span id="scrapedCountBadge" class="ml-2 bg-emerald-100 text-emerald-800 text-xs px-2.5 py-0.5 rounded-full font-bold">0 Adres</span>
             </h3>
             <p id="scrapedMetaText" class="text-xs text-slate-500 mt-0.5"></p>
           </div>
@@ -427,6 +538,41 @@
             </thead>
             <tbody id="scrapedTableBody" class="divide-y divide-slate-200 text-sm">
               <!-- Dinamik satırlar -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 3. GÖNDERİLMİŞ MAİLLER (KİMLERE GÖNDERİLDİ?) KARTI -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-3 flex-wrap gap-2">
+          <div>
+            <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+              <i data-lucide="send" class="w-4 h-4 text-emerald-600"></i>
+              <span>📤 Gönderilmiş Mailler (Kimlere Gönderildi?)</span>
+              <span id="senderSentCountBadge" class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-0.5 rounded-full font-bold">0 Mail</span>
+            </h3>
+            <p class="text-xs text-slate-500">Sistem üzerinden başarıyla iletilen ve yeni hazırlanan tüm tanıtım mailleri</p>
+          </div>
+          <button onclick="loadLogs()" class="p-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-600 transition flex items-center gap-1 text-xs font-semibold" title="Yenile">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>Yenile</span>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-100/75 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                <th class="py-2.5 px-4">Tarih / Saat</th>
+                <th class="py-2.5 px-4">Alıcı E-Posta</th>
+                <th class="py-2.5 px-4">Firma Adı</th>
+                <th class="py-2.5 px-4">Konu</th>
+                <th class="py-2.5 px-4 text-right">Durum</th>
+              </tr>
+            </thead>
+            <tbody id="senderLogsTableBody" class="divide-y divide-slate-200 text-sm">
+              <!-- Dinamik -->
             </tbody>
           </table>
         </div>
@@ -1051,6 +1197,195 @@
     }
 
     // ==========================================
+    // AI KARAR VERİCİ & E-POSTA AVCISI (AI HUNTER)
+    // ==========================================
+    function toggleAiCustomPersonBox() {
+      const box = document.getElementById('aiCustomPersonBox');
+      if (box) box.classList.toggle('hidden');
+    }
+
+    async function handleAiHunt() {
+      const urlInput = document.getElementById('targetUrl');
+      const url = urlInput ? urlInput.value.trim() : '';
+      const personNameInput = document.getElementById('aiPersonName');
+      const personName = personNameInput ? personNameInput.value.trim() : '';
+      const roleInput = document.getElementById('aiPersonRole');
+      const role = roleInput ? roleInput.value : '';
+
+      const btn = document.getElementById('aiHuntBtn');
+      const resultsCard = document.getElementById('aiHunterResultsCard');
+
+      if (!url) {
+        showToast('Lütfen önce firmanın web sitesi adresini (örn: niltex.com.tr) girin.', 'error');
+        if (urlInput) urlInput.focus();
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>AI Analiz Ediyor...</span>`;
+      lucide.createIcons();
+
+      try {
+        const res = await fetch('/api/ai-hunter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, personName, role })
+        });
+        const json = await res.json();
+        if (json.success) {
+          renderAiHunterResults(json.data);
+          showToast(`AI: "${json.data.companyName}" karar vericileri ve satın alma masaları başarıyla analiz edildi!`, 'success');
+        } else {
+          showToast(json.error || 'AI analizi yapılamadı.', 'error');
+        }
+      } catch (err) {
+        showToast('Hata: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4 text-amber-300"></i><span>AI ile Karar Verici & Mail Bul</span>`;
+        lucide.createIcons();
+      }
+    }
+
+    function renderAiHunterResults(data) {
+      const card = document.getElementById('aiHunterResultsCard');
+      const domainBadge = document.getElementById('aiDomainPatternBadge');
+      const companyTitle = document.getElementById('aiCompanyTitle');
+      const linkedinBtn = document.getElementById('aiLinkedinSearchBtn');
+      const tbody = document.getElementById('aiHunterTableBody');
+
+      if (!card || !tbody) return;
+
+      companyTitle.textContent = `${data.companyName} (${data.domain})`;
+      domainBadge.textContent = data.sampleDomainPattern || `ad@${data.domain}`;
+      if (linkedinBtn) {
+        linkedinBtn.href = data.linkedinSearchUrl;
+      }
+
+      tbody.innerHTML = '';
+
+      // 1. Özel Girilen Yetkili Varsa (Örn: Furkan Aydın)
+      if (data.customPerson && data.customPerson.patterns) {
+        data.customPerson.patterns.forEach(p => {
+          tbody.innerHTML += `
+            <tr class="bg-purple-50/70 hover:bg-purple-100/70 transition text-xs border-b border-purple-100">
+              <td class="py-3 px-4">
+                <div class="font-bold text-purple-950 flex items-center gap-1.5">
+                  <i data-lucide="user-check" class="w-4 h-4 text-purple-600"></i>
+                  <span>${data.customPerson.fullName}</span>
+                </div>
+                <span class="text-[11px] text-purple-700 font-semibold">${data.customPerson.role}</span>
+              </td>
+              <td class="py-3 px-4 font-mono font-bold text-purple-900">${p.email}</td>
+              <td class="py-3 px-4">
+                <span class="bg-purple-100 text-purple-800 border border-purple-300 px-2 py-0.5 rounded-full text-[11px] font-bold">
+                  %${p.confidence} - ${p.patternName}
+                </span>
+              </td>
+              <td class="py-3 px-4 text-right flex items-center justify-end gap-1.5">
+                <button onclick="sendEmailToLead('${p.email}', '${data.companyName}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg transition inline-flex items-center gap-1 shadow-sm">
+                  <i data-lucide="send" class="w-3 h-3"></i>
+                  <span>Hemen Gönder</span>
+                </button>
+                <button onclick="openLeadInOutlook('${p.email}', '${data.companyName}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2 py-1.5 rounded-lg transition inline-flex items-center gap-1 shadow-sm">
+                  <i data-lucide="external-link" class="w-3 h-3"></i>
+                  <span>Outlook</span>
+                </button>
+                <button onclick="copyToClipboard('${p.email}')" title="Kopyala" class="p-1.5 text-slate-500 hover:text-slate-800 transition rounded-lg hover:bg-white/80">
+                  <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+      }
+
+      // 2. Siteden Tespit Edilen Yetkililer
+      if (data.namedDecisionMakers && data.namedDecisionMakers.length > 0) {
+        data.namedDecisionMakers.forEach(person => {
+          tbody.innerHTML += `
+            <tr class="hover:bg-slate-50 transition text-xs border-b border-slate-100">
+              <td class="py-3 px-4">
+                <div class="font-bold text-slate-900 flex items-center gap-1.5">
+                  <i data-lucide="user" class="w-4 h-4 text-brand-700"></i>
+                  <span>${person.fullName}</span>
+                </div>
+                <span class="text-[11px] text-slate-500 font-semibold">${person.role}</span>
+              </td>
+              <td class="py-3 px-4 font-mono font-bold text-slate-900">${person.primaryEmail}</td>
+              <td class="py-3 px-4">
+                <span class="bg-teal-100 text-teal-800 border border-teal-300 px-2 py-0.5 rounded-full text-[11px] font-bold">
+                  %${person.confidence} - Sitede Tespit Edildi
+                </span>
+              </td>
+              <td class="py-3 px-4 text-right flex items-center justify-end gap-1.5">
+                <button onclick="sendEmailToLead('${person.primaryEmail}', '${data.companyName}')" class="bg-brand-700 hover:bg-brand-800 text-white font-bold px-3 py-1.5 rounded-lg transition inline-flex items-center gap-1 shadow-sm">
+                  <i data-lucide="send" class="w-3 h-3"></i>
+                  <span>Hemen Gönder</span>
+                </button>
+                <button onclick="openLeadInOutlook('${person.primaryEmail}', '${data.companyName}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2 py-1.5 rounded-lg transition inline-flex items-center gap-1 shadow-sm">
+                  <i data-lucide="external-link" class="w-3 h-3"></i>
+                  <span>Outlook</span>
+                </button>
+                <button onclick="copyToClipboard('${person.primaryEmail}')" title="Kopyala" class="p-1.5 text-slate-400 hover:text-slate-700 transition">
+                  <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+      }
+
+      // 3. Departman Masaları (Satın Alma, İthalat, Yönetim, B2B)
+      if (data.departmentInboxes && data.departmentInboxes.length > 0) {
+        data.departmentInboxes.forEach(dep => {
+          tbody.innerHTML += `
+            <tr class="hover:bg-slate-50 transition text-xs border-b border-slate-100">
+              <td class="py-3 px-4">
+                <div class="font-bold text-slate-900 flex items-center gap-1.5">
+                  <i data-lucide="building-2" class="w-4 h-4 text-indigo-600"></i>
+                  <span>${dep.role}</span>
+                </div>
+                <span class="text-[11px] text-slate-400 font-medium">${dep.alternativeEmails.slice(0, 2).join(', ')}</span>
+              </td>
+              <td class="py-3 px-4 font-mono font-bold text-slate-900">${dep.email}</td>
+              <td class="py-3 px-4">
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold border ${dep.badgeClass}">
+                  ${dep.badge}
+                </span>
+              </td>
+              <td class="py-3 px-4 text-right flex items-center justify-end gap-1.5">
+                <button onclick="sendEmailToLead('${dep.email}', '${data.companyName}')" class="bg-brand-700 hover:bg-brand-800 text-white font-bold px-3 py-1.5 rounded-lg transition inline-flex items-center gap-1 shadow-sm">
+                  <i data-lucide="send" class="w-3 h-3"></i>
+                  <span>Hemen Gönder</span>
+                </button>
+                <button onclick="openLeadInOutlook('${dep.email}', '${data.companyName}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2 py-1.5 rounded-lg transition inline-flex items-center gap-1 shadow-sm">
+                  <i data-lucide="external-link" class="w-3 h-3"></i>
+                  <span>Outlook</span>
+                </button>
+                <button onclick="copyToClipboard('${dep.email}')" title="Kopyala" class="p-1.5 text-slate-400 hover:text-slate-700 transition">
+                  <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+      }
+
+      card.classList.remove('hidden');
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      lucide.createIcons();
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(`Kopyalandı: ${text}`, 'success');
+      }).catch(() => {
+        showToast('Kopyalama hatası', 'error');
+      });
+    }
+
+    // ==========================================
     // WEB SCRAPER
     // ==========================================
     async function handleScrape(e) {
@@ -1074,6 +1409,7 @@
         const data = await res.json();
         if (data.success) {
           renderScrapeResults(data.data);
+          showToast(`Tarama tamamlandı: ${data.data.emailsFound} kurumsal e-posta tespit edildi.`, 'success');
         } else {
           showToast(data.error || 'Tarama başarısız oldu.', 'error');
         }
@@ -1098,15 +1434,19 @@
 
       if (data.results.length === 0) {
         tbody.innerHTML = `
-          <tr><td colspan="5" class="py-8 text-center text-slate-500 text-xs">Bu sitede e-posta adresi bulunamadı.</td></tr>
+          <tr><td colspan="5" class="py-8 text-center text-slate-500 text-xs">Bu sitede doğrulanmış e-posta adresi bulunamadı. "AI ile Karar Verici & Mail Bul" butonuyla olası adresleri tahmin edebilirsiniz.</td></tr>
         `;
       } else {
         data.results.forEach(item => {
+          const compBadge = item.isCompanyDomain
+            ? `<span class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-300">Firma Alan Adı</span>`
+            : '';
+
           tbody.innerHTML += `
             <tr class="hover:bg-slate-50 transition text-xs">
-              <td class="py-3 px-4 font-mono font-bold text-slate-900">${item.email}</td>
+              <td class="py-3 px-4 font-mono font-bold text-slate-900">${item.email}${compBadge}</td>
               <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[11px] font-semibold ${item.badgeClass}">${item.category}</span></td>
-              <td class="py-3 px-4 text-slate-500 truncate max-w-xs">${item.sourceUrl}</td>
+              <td class="py-3 px-4 text-slate-500 truncate max-w-xs font-mono text-[11px]">${item.sourceUrl}</td>
               <td class="py-3 px-4">
                 <span class="inline-flex items-center gap-1 text-slate-600 font-medium">Bekliyor</span>
               </td>
@@ -1119,6 +1459,9 @@
                   <i data-lucide="external-link" class="w-3 h-3"></i>
                   <span>Outlook</span>
                 </button>
+                <button onclick="copyToClipboard('${item.email}')" title="Kopyala" class="p-1.5 text-slate-400 hover:text-slate-700 transition">
+                  <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                </button>
               </td>
             </tr>
           `;
@@ -1126,6 +1469,7 @@
       }
 
       resultsCard.classList.remove('hidden');
+      resultsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       lucide.createIcons();
     }
 
@@ -1201,7 +1545,7 @@
     }
 
     // ==========================================
-    // LOGLAR
+    // LOGLAR & GÖNDERİLMİŞ MAİLLER
     // ==========================================
     async function loadLogs() {
       try {
@@ -1217,29 +1561,63 @@
 
     function renderLogsTable(logs) {
       const tbody = document.getElementById('logsTableBody');
-      tbody.innerHTML = '';
+      const senderTbody = document.getElementById('senderLogsTableBody');
+      const senderBadge = document.getElementById('senderSentCountBadge');
+      const navBadge = document.getElementById('navLogsBadge');
 
-      if (logs.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 text-xs">Henüz gönderim kaydı bulunmuyor.</td></tr>`;
-        return;
+      if (senderBadge) senderBadge.textContent = `${logs.length} Mail`;
+      if (navBadge) navBadge.textContent = `${logs.length}`;
+
+      // Tab-Logs Tablosu
+      if (tbody) {
+        tbody.innerHTML = '';
+        if (logs.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 text-xs">Henüz gönderim kaydı bulunmuyor.</td></tr>`;
+        } else {
+          logs.forEach(log => {
+            const isSuccess = log.status === 'success';
+            const badge = isSuccess
+              ? `<span class="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full text-xs font-semibold">✓ Başarılı</span>`
+              : `<span class="inline-flex items-center gap-1 text-red-700 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full text-xs font-semibold">✕ Hata</span>`;
+
+            tbody.innerHTML += `
+              <tr class="hover:bg-slate-50 transition text-xs">
+                <td class="py-2.5 px-4 text-slate-500 whitespace-nowrap">${new Date(log.sent_at).toLocaleString('tr-TR')}</td>
+                <td class="py-2.5 px-4 font-mono font-medium text-slate-900">${log.email}</td>
+                <td class="py-2.5 px-4 text-slate-700 font-semibold truncate max-w-xs">${log.subject}</td>
+                <td class="py-2.5 px-4 text-slate-500 font-mono text-[11px]">${log.company_name || log.attachment_name || 'Katalog Kitapçıkları'}</td>
+                <td class="py-2.5 px-4 text-right">${badge}</td>
+              </tr>
+            `;
+          });
+        }
       }
 
-      logs.forEach(log => {
-        const isSuccess = log.status === 'success';
-        const badge = isSuccess
-          ? `<span class="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full text-xs font-semibold">✓ Başarılı</span>`
-          : `<span class="inline-flex items-center gap-1 text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full text-xs font-semibold">✕ Hata</span>`;
+      // Tab-Sender'daki Gönderilmiş Mailler Tablosu (Kimlere Gönderildi?)
+      if (senderTbody) {
+        senderTbody.innerHTML = '';
+        if (logs.length === 0) {
+          senderTbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400 text-xs">Henüz e-posta gönderilmedi. Yukarıdan bir e-posta adresi yazarak "Hemen Gönder" butonuna basabilirsiniz.</td></tr>`;
+        } else {
+          logs.forEach(log => {
+            const isSuccess = log.status === 'success';
+            const badge = isSuccess
+              ? `<span class="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[11px] font-bold">✓ İletildi</span>`
+              : `<span class="inline-flex items-center gap-1 text-red-700 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full text-[11px] font-bold">✕ Başarısız</span>`;
 
-        tbody.innerHTML += `
-          <tr class="hover:bg-slate-50 transition text-xs">
-            <td class="py-2.5 px-4 text-slate-500 whitespace-nowrap">${new Date(log.sent_at).toLocaleString('tr-TR')}</td>
-            <td class="py-2.5 px-4 font-mono font-medium text-slate-900">${log.email}</td>
-            <td class="py-2.5 px-4 text-slate-700 font-semibold truncate max-w-xs">${log.subject}</td>
-            <td class="py-2.5 px-4 text-slate-500 font-mono text-[11px]">${log.attachment_name || 'Katalog Kitapçıkları'}</td>
-            <td class="py-2.5 px-4 text-right">${badge}</td>
-          </tr>
-        `;
-      });
+            senderTbody.innerHTML += `
+              <tr class="hover:bg-slate-50 transition text-xs">
+                <td class="py-2.5 px-4 text-slate-500 whitespace-nowrap font-medium">${new Date(log.sent_at).toLocaleString('tr-TR')}</td>
+                <td class="py-2.5 px-4 font-mono font-bold text-slate-900">${log.email}</td>
+                <td class="py-2.5 px-4 text-slate-700 font-semibold">${log.company_name || '-'}</td>
+                <td class="py-2.5 px-4 text-slate-600 truncate max-w-xs font-medium">${log.subject}</td>
+                <td class="py-2.5 px-4 text-right">${badge}</td>
+              </tr>
+            `;
+          });
+        }
+      }
+
       lucide.createIcons();
     }
 

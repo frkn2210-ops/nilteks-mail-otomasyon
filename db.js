@@ -161,8 +161,32 @@ async function logEmail(lead_id, email, step, subject, attachment_name, status, 
   );
 }
 
+async function getEmailLogs(limit = 200) {
+  try {
+    return await all(`
+      SELECT 
+        l.id,
+        l.lead_id,
+        l.email,
+        l.step,
+        l.subject,
+        l.attachment_name,
+        l.status,
+        l.error_message,
+        l.sent_at,
+        COALESCE(leads.company_name, '') as company_name
+      FROM email_logs l
+      LEFT JOIN leads ON l.lead_id = leads.id
+      ORDER BY l.sent_at DESC 
+      LIMIT ?
+    `, [limit]);
+  } catch (err) {
+    return await all(`SELECT * FROM email_logs ORDER BY sent_at DESC LIMIT ?`, [limit]);
+  }
+}
+
 async function getRecentLogs(limit = 100) {
-  return await all(`SELECT * FROM email_logs ORDER BY sent_at DESC LIMIT ?`, [limit]);
+  return await getEmailLogs(limit);
 }
 
 async function getStats() {
@@ -192,6 +216,7 @@ module.exports = {
   markLeadSent,
   deleteLead,
   logEmail,
+  getEmailLogs,
   getRecentLogs,
   getStats
 };

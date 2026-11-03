@@ -7,6 +7,7 @@ const multer = require('multer');
 const db = require('./db');
 const scraper = require('./scraper');
 const mailer = require('./mailer');
+const aiHunter = require('./ai_hunter');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -294,6 +295,17 @@ app.post('/api/campaign/open-outlook', async (req, res) => {
 
   try {
     const result = await mailer.openInNewOutlook(email);
+    try {
+      const lead = await db.addOrGetLead({
+        email,
+        company_name: company_name || '',
+        source_url: 'Outlook Masaüstü',
+        category: 'İletişim / Bilgi'
+      });
+      await db.markLeadSent(lead.id, 'Outlook Taslağı Hazırlandı');
+      await db.logEmail(lead.id, lead.email, 1, 'Outlook (Yeni Düzen) Taslağı Açıldı', 'Katalog Kitapçıkları', 'success', null);
+    } catch {}
+
     res.json({
       success: true,
       message: `E-posta Microsoft Outlook (Yeni Düzen) uygulamasında açıldı. İnceleyip gönderebilirsiniz.`,
@@ -335,6 +347,34 @@ app.post('/api/scrape', async (req, res) => {
   try {
     const scrapeData = await scraper.scrapeWebsite(url);
     res.json({ success: true, data: scrapeData });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 13B. AI Karar Verici & E-Posta Avcısı (Satın Alma, Kategori Yöneticisi, CEO & Şahıs E-Posta Tahmini)
+app.post('/api/ai-hunter', async (req, res) => {
+  const { url, personName, role } = req.body;
+  if (!url || typeof url !== 'string' || !url.trim()) {
+    return res.status(400).json({ success: false, error: 'Lütfen bir web sitesi URL veya alan adı girin.' });
+  }
+
+  try {
+    const domain = aiHunter.cleanDomain(url);
+    const huntData = await aiHunter.huntDecisionMakers(url);
+
+    // Eğer kullanıcı özel kişi adı girdiyse (Örn: Furkan Aydın), o kişi için özel şablonları da ekle
+    if (personName && personName.trim()) {
+      const customPatterns = aiHunter.generateEmailPatterns(personName, domain, role || 'Yetkili');
+      huntData.customPerson = {
+        fullName: personName.trim(),
+        role: role || 'Yetkili / Satın Alma Sorumlusu',
+        primaryEmail: customPatterns[0]?.email,
+        patterns: customPatterns
+      };
+    }
+
+    res.json({ success: true, data: huntData });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

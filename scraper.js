@@ -16,17 +16,42 @@ const httpAgent = new http.Agent({
 
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
-// Geçersiz / Çöp filtreleri
-const IGNORED_DOMAINS = [
-  'example.com', 'test.com', 'domain.com', 'sentry.io', 'wixpress.com', 
-  'cloudflare.com', 'schema.org', 'w3.org', 'googleapis.com', 'gravatar.com',
-  'facebook.com', 'twitter.com', 'instagram.com', 'linkedin.com', 'youtube.com'
+// Geçerli Ticari ve Ülke TLD Listesi
+const VALID_TLDS = new Set([
+  'com', 'net', 'org', 'de', 'tr', 'com.tr', 'org.tr', 'net.tr', 'biz.tr', 'info.tr', 'gen.tr',
+  'uk', 'co.uk', 'eu', 'fr', 'it', 'es', 'nl', 'at', 'ch', 'be', 'dk', 'se', 'no', 'fi',
+  'pl', 'cz', 'gr', 'bg', 'ro', 'ru', 'ua', 'us', 'ca', 'au', 'nz', 'info', 'biz',
+  'co', 'io', 'me', 'pro', 'store', 'shop', 'ltd', 'gmbh', 'online', 'textiles', 'fashion',
+  'group', 'global', 'trade', 'int', 'cc', 'tv', 'ws'
+]);
+
+// Dosya ve Medya Uzantıları (Kesinlikle e-posta olamaz)
+const INVALID_EXTENSIONS = [
+  '.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.css', '.js', '.map',
+  '.woff', '.woff2', '.ttf', '.eot', '.otf', '.mp4', '.mp3', '.pdf', '.zip',
+  '.gz', '.json', '.xml', '.wasm', '.ico', '.bmp', '.tif', '.tiff', '.avif',
+  '.min.js', '.min.css'
 ];
 
-const INVALID_EXTENSIONS = [
-  '.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.css', '.js', 
-  '.woff', '.woff2', '.ttf', '.eot', '.mp4', '.mp3', '.pdf'
+// E-posta Taramasında Hariç Tutulacak Servis / Kütüphane / Takip Alan Adları
+const IGNORED_DOMAINS = [
+  'example.com', 'test.com', 'domain.com', 'sample.com', 'yourcompany.com', 'yourname.com', 'email.com', 'site.com',
+  'sentry.io', 'wixpress.com', 'cloudflare.com', 'schema.org', 'w3.org', 'googleapis.com', 'gstatic.com',
+  'gravatar.com', 'github.com', 'gitlab.com', 'bootstrapcdn.com', 'unpkg.com', 'cdnjs.com', 'jsdelivr.net',
+  'polyfill.io', 'fontawesome.com', 'akamaized.net', 'wp.org', 'wordpress.org', 'automattic.com',
+  'facebook.com', 'twitter.com', 'instagram.com', 'linkedin.com', 'youtube.com', 'tiktok.com', 'pinterest.com',
+  'doubleclick.net', 'google.com', 'google-analytics.com', 'googletagmanager.com', 'clarity.ms', 'hotjar.com',
+  'trustpilot.com', 'usercentrics.eu', 'cookiebot.com', 'onetrust.com', 'criteo.com', 'bing.com',
+  'mailchimp.com', 'klaviyo.com', 'sendgrid.com', 'hubspot.com', 'intercom.io', 'zendesk.com', 'freshdesk.com',
+  'shopify.com', 'myshopify.com', 'privacymanager.io', 'typekit.net', 'adobe.com'
 ];
+
+// Sahte / Hatalı Kullanıcı Adı (Local-part) Filtresi
+const IGNORED_USERNAMES = new Set([
+  'u0026', 'u003c', 'u003e', 'undefined', 'null', 'false', 'true', 'placeholder',
+  'username', 'yourname', 'name', 'test', 'sample', 'privacy', 'cookie', 'gdpr', 'abuse',
+  'noreply', 'no-reply', 'donotreply', 'support-bot', 'webmaster'
+]);
 
 // Cloudflare Email Protection Çözücü (__cf_email__)
 function decodeCloudflareEmail(hex) {
@@ -43,17 +68,14 @@ function decodeCloudflareEmail(hex) {
   }
 }
 
-// HTML Entity ve Karakter Temizleme (&#64; -> @, %40 -> @ vb.)
+// HTML Entity ve Karakter Temizleme
 function cleanAndDecodeHtmlEntities(text) {
   if (!text) return '';
   let str = text;
-
-  // URL Encode
   try {
     str = decodeURIComponent(str);
   } catch {}
 
-  // Yaygın HTML entities
   str = str
     .replace(/&#64;/gi, '@')
     .replace(/&#064;/gi, '@')
@@ -62,77 +84,164 @@ function cleanAndDecodeHtmlEntities(text) {
     .replace(/&period;/gi, '.')
     .replace(/&amp;/gi, '&')
     .replace(/&nbsp;/gi, ' ')
-    .replace(/[\u200B-\u200D\uFEFF]/g, ''); // Sıfır genişlikli boşlukları temizle
+    .replace(/[\u200B-\u200D\uFEFF]/g, '');
 
   return str;
 }
 
-// E-posta Geçerlilik Kontrolü
-function isValidEmail(email) {
+// Alan Adını Temizle
+function extractCleanHostname(urlStr) {
+  try {
+    let str = urlStr.trim();
+    if (!str.startsWith('http://') && !str.startsWith('https://')) str = 'https://' + str;
+    const obj = new URL(str);
+    return obj.hostname.replace(/^(www\.|m\.)/i, '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+// Kesin ve Güvenilir E-posta Geçerlilik Kontrolü
+function isValidEmail(email, targetHostname = '') {
   if (!email || typeof email !== 'string') return false;
   const cleaned = cleanAndDecodeHtmlEntities(email).trim().toLowerCase();
-  if (cleaned.length < 5 || cleaned.length > 80) return false;
 
-  // Dosya uzantısı kontrolü (logo@2x.png vb. durumlar için)
+  // Uzunluk kontrolü
+  if (cleaned.length < 6 || cleaned.length > 80) return false;
+
+  // Boşluk, tırnak, parantez veya geçersiz karakter içeremez
+  if (/[\s'"<>\\()[\]{}:;,/!#$%^&*]/.test(cleaned.replace('@', ''))) {
+    // Özel izinli semboller: . _ - +
+    const localAndDomain = cleaned.split('@');
+    if (localAndDomain.length !== 2) return false;
+  }
+
+  const parts = cleaned.split('@');
+  if (parts.length !== 2) return false;
+  const [local, domain] = parts;
+
+  // Kullanıcı adı (local) kuralları
+  if (!local || local.length < 2 || local.length > 40) return false;
+  if (/^[._-]|[._-]$/.test(local)) return false; // nokta/tire ile başlayıp bitemez
+  if (/\.{2,}/.test(local)) return false; // ardışık nokta olamaz
+  if (IGNORED_USERNAMES.has(local)) return false;
+
+  // Harf olmayan veya geçersiz kelime ikameleri (Örn: b@hroom, loc@ed, discrimin@ion)
+  if (/^[0-9]+$/.test(local)) return false; // Sadece rakamdan oluşan kullanıcı adlarını engelle
+
+  // Alan adı (domain) kuralları
+  if (!domain || domain.length < 4 || domain.length > 60) return false;
+  if (!domain.includes('.')) return false;
+  if (/^[.-]|[.-]$/.test(domain)) return false;
+  if (/\.{2,}/.test(domain)) return false;
+
+  // Dosya uzantısı kontrolü (.png, .jpg vb.)
   for (const ext of INVALID_EXTENSIONS) {
-    if (cleaned.endsWith(ext)) return false;
+    if (domain.endsWith(ext) || cleaned.endsWith(ext)) return false;
   }
 
-  // Geçersiz / sahte alan adları
-  for (const domain of IGNORED_DOMAINS) {
-    if (cleaned.includes(domain)) return false;
+  // Kara listedeki servis / çöp alan adları
+  for (const ign of IGNORED_DOMAINS) {
+    if (domain === ign || domain.endsWith('.' + ign)) return false;
   }
 
-  // Standart regex kontrolü
-  const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  return regex.test(cleaned);
+  // TLD (uzantı) kontrolü
+  const domainParts = domain.split('.');
+  const tld = domainParts[domainParts.length - 1];
+  const secondLevelTld = domainParts.length >= 3 ? `${domainParts[domainParts.length - 2]}.${tld}` : null;
+
+  const hasValidTld = VALID_TLDS.has(tld) || (secondLevelTld && VALID_TLDS.has(secondLevelTld));
+  if (!hasValidTld) return false;
+
+  // Standart E-posta Biçimi Regex'i
+  const standardRegex = /^[a-zA-Z0-9](?:[a-zA-Z0-9._%+-]*[a-zA-Z0-9])?@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)+$/;
+  if (!standardRegex.test(cleaned)) return false;
+
+  return true;
 }
 
 // Departman / Kategori Belirleme
-function categorizeEmail(email) {
+function categorizeEmail(email, targetHostname = '') {
   const lower = email.toLowerCase();
+  const domain = lower.split('@')[1] || '';
+  const cleanTarget = extractCleanHostname(targetHostname);
+
+  const isCompanyDomain = cleanTarget && (domain === cleanTarget || domain.endsWith('.' + cleanTarget));
 
   // Satın Alma & Tedarik
   if (lower.includes('purchasing') || lower.includes('purchase') || lower.includes('buying') || 
       lower.includes('procurement') || lower.includes('satin') || lower.includes('tedarik') || 
       lower.includes('buyer') || lower.includes('einkauf')) {
-    return { type: 'Satın Alma (Purchasing)', priority: 1, badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
+    return {
+      type: 'Satın Alma (Purchasing)',
+      priority: 1,
+      badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+      isCompanyDomain
+    };
   }
 
-  // Yönetim, Dış Ticaret & İhracat
+  // Yönetim, Dış Ticaret & İhracat / İthalat
   if (lower.includes('export') || lower.includes('ihracat') || lower.includes('import') || 
       lower.includes('ithalat') || lower.includes('director') || lower.includes('manager') || 
       lower.includes('ceo') || lower.includes('geschaeftsfuehrer') || lower.includes('owner') ||
-      lower.includes('founder') || lower.includes('yonetim')) {
-    return { type: 'Yönetim / Dış Ticaret', priority: 2, badgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-300' };
+      lower.includes('founder') || lower.includes('yonetim') || lower.includes('inhaber')) {
+    return {
+      type: 'Yönetim / Dış Ticaret',
+      priority: 2,
+      badgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+      isCompanyDomain
+    };
   }
 
   // Satış & B2B Sipariş
   if (lower.includes('sales') || lower.includes('satis') || lower.includes('order') || 
       lower.includes('siparis') || lower.includes('vertrieb') || lower.includes('b2b') ||
       lower.includes('wholesale') || lower.includes('toptan')) {
-    return { type: 'Satış / Sipariş', priority: 3, badgeClass: 'bg-blue-100 text-blue-800 border-blue-300' };
+    return {
+      type: 'Satış / B2B Sipariş',
+      priority: 3,
+      badgeClass: 'bg-blue-100 text-blue-800 border-blue-300',
+      isCompanyDomain
+    };
   }
 
-  // İletişim, Danışma & Genel Bilgi
+  // İletişim, Danışma & Genel Bilgi (Info)
   if (lower.includes('info') || lower.includes('contact') || lower.includes('iletisim') || 
       lower.includes('kontakt') || lower.includes('hello') || lower.includes('office') || 
-      lower.includes('mail') || lower.includes('support') || lower.includes('desk') ||
-      lower.includes('kundenservice') || lower.includes('service')) {
-    return { type: 'İletişim / Genel Bilgi (Info)', priority: 4, badgeClass: 'bg-amber-100 text-amber-800 border-amber-300' };
+      lower.includes('mail') || lower.includes('desk') || lower.includes('support')) {
+    return {
+      type: 'İletişim / Genel Bilgi (Info)',
+      priority: isCompanyDomain ? 4 : 5,
+      badgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
+      isCompanyDomain
+    };
   }
 
-  return { type: 'Diğer Kurumsal Adres', priority: 5, badgeClass: 'bg-slate-100 text-slate-800 border-slate-300' };
+  // Şahıs / Yetkili Adresi (ad@domain.com vb.)
+  if (isCompanyDomain) {
+    return {
+      type: 'Firma İçi Yetkili / Şahıs Adresi',
+      priority: 2,
+      badgeClass: 'bg-teal-100 text-teal-800 border-teal-300',
+      isCompanyDomain: true
+    };
+  }
+
+  return {
+    type: 'Diğer Kurumsal Adres',
+    priority: 6,
+    badgeClass: 'bg-slate-100 text-slate-800 border-slate-300',
+    isCompanyDomain: false
+  };
 }
 
 // Gizlenmiş / Maskelenmiş (Obfuscated) e-postaları yakalama
-// Örn: info [at] domain.com, contact(at)domain.de, purchasing AT domain DOT com
-function extractObfuscatedEmails(text) {
+function extractObfuscatedEmails(text, targetHostname = '') {
   const found = new Set();
   if (!text) return found;
 
   const patterns = [
-    /([a-zA-Z0-9._%+-]+)\s*(?:\[|\(|\{)?\s*(?:at|@)\s*(?:\]|\)|\})?\s*([a-zA-Z0-9.-]+)\s*(?:\[|\(|\{)?\s*(?:dot|\.|\s*\.\s*)\s*(?:\]|\)|\})?\s*([a-zA-Z]{2,})/gi
+    /([a-zA-Z0-9._%+-]{2,30})\s*(?:\[|\(|\{)?\s*(?:at|@)\s*(?:\]|\)|\})?\s*([a-zA-Z0-9.-]{2,30})\s*(?:\[|\(|\{)?\s*(?:dot|\.|\s*\.\s*)\s*(?:\]|\)|\})?\s*([a-zA-Z]{2,10})/gi
   ];
 
   for (const regex of patterns) {
@@ -142,7 +251,7 @@ function extractObfuscatedEmails(text) {
       const domain = match[2].trim().replace(/\.$/, '');
       const tld = match[3].trim();
       const reconstructed = `${user}@${domain}.${tld}`.toLowerCase();
-      if (isValidEmail(reconstructed)) {
+      if (isValidEmail(reconstructed, targetHostname)) {
         found.add(reconstructed);
       }
     }
@@ -151,19 +260,33 @@ function extractObfuscatedEmails(text) {
   return found;
 }
 
-// Bir HTML içeriğinden tüm yöntemlerle e-postaları çıkarma
-function extractAllEmailsFromHtml(rawHtml) {
+// Bir HTML içeriğinden SADECE GERÇEK E-POSTALARI Çıkarma
+function extractAllEmailsFromHtml(rawHtml, targetHostname = '') {
   const emails = new Set();
   if (!rawHtml || typeof rawHtml !== 'string') return emails;
 
   const html = cleanAndDecodeHtmlEntities(rawHtml);
   const $ = cheerio.load(html);
 
-  // 1. Cloudflare Obfuscation Yakala
+  // 1. ÖNEMLİ: Çöp HTML öğelerini tamamen temizle (Script, Stil, SVG, vb.)
+  // Bu işlem Google Fonts, Webpack paketleri, SVG kimlikleri gibi sahte eşleşmeleri %100 engeller!
+  $('script, style, noscript, svg, canvas, iframe, code, pre, template, head, link, meta, video, audio').remove();
+
+  // 2. mailto: Bağlantıları (En Yüksek Güvenilirlik - İnsan Tarafından Yazılmış)
+  $('a[href^="mailto:"]').each((_, el) => {
+    let href = $(el).attr('href') || '';
+    let email = href.replace(/^mailto:/i, '').split('?')[0].split('&')[0].trim();
+    email = cleanAndDecodeHtmlEntities(email);
+    if (isValidEmail(email, targetHostname)) {
+      emails.add(email.toLowerCase());
+    }
+  });
+
+  // 3. Cloudflare Email Protection
   $('[data-cfemail]').each((_, el) => {
     const hex = $(el).attr('data-cfemail');
     const decoded = decodeCloudflareEmail(hex);
-    if (decoded && isValidEmail(decoded)) {
+    if (decoded && isValidEmail(decoded, targetHostname)) {
       emails.add(decoded);
     }
   });
@@ -172,52 +295,32 @@ function extractAllEmailsFromHtml(rawHtml) {
     const href = $(el).attr('href') || '';
     const hex = href.split('#')[1];
     const decoded = decodeCloudflareEmail(hex);
-    if (decoded && isValidEmail(decoded)) {
+    if (decoded && isValidEmail(decoded, targetHostname)) {
       emails.add(decoded);
     }
   });
 
-  // 2. mailto: Bağlantıları
-  $('a[href^="mailto:"]').each((_, el) => {
-    let href = $(el).attr('href') || '';
-    let email = href.replace(/^mailto:/i, '').split('?')[0].split('&')[0].trim();
-    email = cleanAndDecodeHtmlEntities(email);
-    if (isValidEmail(email)) {
-      emails.add(email.toLowerCase());
-    }
-  });
-
-  // 3. Özel data- ve value etiketleri
-  $('[data-email], [data-mail], [data-address], [data-contact]').each((_, el) => {
-    const val = $(el).attr('data-email') || $(el).attr('data-mail') || $(el).attr('data-address') || $(el).attr('data-contact');
-    if (val && isValidEmail(val)) {
+  // 4. Özel data- etiketleri
+  $('[data-email], [data-mail]').each((_, el) => {
+    const val = $(el).attr('data-email') || $(el).attr('data-mail');
+    if (val && isValidEmail(val, targetHostname)) {
       emails.add(val.toLowerCase().trim());
     }
   });
 
-  // 4. JSON-LD / Schema.org Yapılandırılmış Veriler
-  $('script[type="application/ld+json"]').each((_, el) => {
-    try {
-      const jsonContent = $(el).html();
-      const emailMatches = jsonContent.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi) || [];
-      for (const m of emailMatches) {
-        if (isValidEmail(m)) emails.add(m.toLowerCase().trim());
-      }
-    } catch {}
-  });
-
-  // 5. Standart Regex ile Tüm Metin ve Body Taraması
-  const standardRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi;
-  const matches = html.match(standardRegex) || [];
+  // 5. Temizlenmiş Metin Üzerinde Standart Regex Taraması
+  const cleanBodyText = $('body').text();
+  const standardRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,10}/gi;
+  const matches = cleanBodyText.match(standardRegex) || [];
   for (const m of matches) {
     const cleanMail = m.trim().toLowerCase();
-    if (isValidEmail(cleanMail)) {
+    if (isValidEmail(cleanMail, targetHostname)) {
       emails.add(cleanMail);
     }
   }
 
   // 6. Maskelenmiş (info [at] domain.com) metinleri çıkar
-  const obfuscated = extractObfuscatedEmails(html);
+  const obfuscated = extractObfuscatedEmails(cleanBodyText, targetHostname);
   for (const o of obfuscated) {
     emails.add(o);
   }
@@ -225,24 +328,17 @@ function extractAllEmailsFromHtml(rawHtml) {
   return emails;
 }
 
-// Derin Link Arama: Tüm dillerdeki iletişim ve kurumsal sayfaları bul
+// Derin Link Arama: İletişim, Satın Alma, Impressum sayfalarını keşfet
 function findDeepContactLinks($, baseUrl) {
   const contactLinks = new Set();
   const baseObj = new URL(baseUrl);
 
-  // Çok dilli anahtar kelimeler (İngilizce, Almanca, Türkçe, Fransızca, İtalyanca, İspanyolca)
   const contactKeywords = [
-    // EN
-    'contact', 'contact-us', 'about', 'about-us', 'imprint', 'impressum', 'reach', 'team',
-    'support', 'help', 'locations', 'stores', 'wholesale', 'purchasing', 'b2b', 'company',
-    // DE
-    'kontakt', 'impressum', 'uber-uns', 'ueber-uns', 'anfahrt', 'kundenservice', 'unternehmen', 'grosshandel',
-    // TR
-    'iletisim', 'hakkimizda', 'bize-ulasin', 'kurumsal', 'subeler', 'magazalar', 'toptan', 'musteri-hizmetleri',
-    // FR
-    'a-propos', 'mentions-legales', 'qui-sommes-nous', 'nous-contacter',
-    // IT / ES
-    'contatti', 'chi-siamo', 'dove-siamo', 'contacto', 'sobre-nosotros', 'quienes-somos', 'aviso-legal'
+    'contact', 'contact-us', 'about', 'about-us', 'imprint', 'impressum', 'team',
+    'support', 'wholesale', 'purchasing', 'b2b', 'company', 'einkauf',
+    'kontakt', 'ueber-uns', 'anfahrt', 'kundenservice', 'unternehmen',
+    'iletisim', 'hakkimizda', 'bize-ulasin', 'kurumsal', 'toptan',
+    'a-propos', 'mentions-legales', 'contatti', 'contacto'
   ];
 
   $('a[href]').each((_, el) => {
@@ -252,17 +348,11 @@ function findDeepContactLinks($, baseUrl) {
       if (!href || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:') || href.startsWith('#')) return;
 
       const absoluteUrl = new URL(href, baseUrl);
-      
-      // Sadece aynı hostname (veya alt alan adı) içindeki bağlantılar
       if (absoluteUrl.hostname === baseObj.hostname || absoluteUrl.hostname.endsWith('.' + baseObj.hostname)) {
         const linkPath = absoluteUrl.pathname.toLowerCase();
-        
-        const isMatch = contactKeywords.some(kw => 
-          linkPath.includes(kw) || text.includes(kw)
-        );
+        const isMatch = contactKeywords.some(kw => linkPath.includes(kw) || text.includes(kw));
 
         if (isMatch && absoluteUrl.href !== baseUrl) {
-          // Parametre ve hashleri temizle
           absoluteUrl.hash = '';
           contactLinks.add(absoluteUrl.href);
         }
@@ -270,7 +360,6 @@ function findDeepContactLinks($, baseUrl) {
     } catch {}
   });
 
-  // En fazla 8 adet yüksek öncelikli iç sayfayı tara
   return Array.from(contactLinks).slice(0, 8);
 }
 
@@ -282,39 +371,39 @@ async function scrapeWebsite(inputUrl) {
   }
 
   const parsedUrl = new URL(targetUrl);
-  const companyGuess = parsedUrl.hostname.replace(/^(www\.|m\.)/i, '').split('.')[0];
+  const targetHostname = parsedUrl.hostname.replace(/^(www\.|m\.)/i, '').toLowerCase();
+  const companyGuess = targetHostname.split('.')[0];
   const companyName = companyGuess.charAt(0).toUpperCase() + companyGuess.slice(1);
 
   const scannedPages = [];
-  const foundEmailsMap = new Map(); // email -> { sources: Set, category }
+  const foundEmailsMap = new Map();
 
   const axiosInstance = axios.create({
-    timeout: 15000,
+    timeout: 12000,
     httpsAgent,
     httpAgent,
     headers: {
       'User-Agent': USER_AGENT,
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-      'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7,de;q=0.6,fr;q=0.5',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7,de;q=0.6',
       'Cache-Control': 'no-cache'
     },
-    maxRedirects: 5,
+    maxRedirects: 4,
     validateStatus: (status) => status >= 200 && status < 500
   });
 
-  // Sayfayı Çek ve E-postaları Çıkar Yardımcısı
   async function processUrl(urlToFetch) {
     try {
       const resp = await axiosInstance.get(urlToFetch);
       scannedPages.push({ url: urlToFetch, status: resp.status });
 
       if (resp.status >= 200 && resp.status < 400 && typeof resp.data === 'string') {
-        const emails = extractAllEmailsFromHtml(resp.data);
+        const emails = extractAllEmailsFromHtml(resp.data, targetHostname);
         for (const email of emails) {
           if (!foundEmailsMap.has(email)) {
             foundEmailsMap.set(email, {
               sources: new Set([urlToFetch]),
-              category: categorizeEmail(email)
+              category: categorizeEmail(email, targetHostname)
             });
           } else {
             foundEmailsMap.get(email).sources.add(urlToFetch);
@@ -328,27 +417,23 @@ async function scrapeWebsite(inputUrl) {
     return null;
   }
 
-  // 1. Ana Sayfayı Tara (HTTPS Dene)
+  // 1. Ana Sayfayı Tara
   let main$ = await processUrl(targetUrl);
 
-  // Eğer HTTPS başarısız olduysa HTTP ile tekrar dene
+  // HTTPS başarısız olursa HTTP ile dene
   if (!main$ && targetUrl.startsWith('https://')) {
     const httpFallback = targetUrl.replace('https://', 'http://');
     main$ = await processUrl(httpFallback);
-    if (main$) {
-      targetUrl = httpFallback;
-    }
+    if (main$) targetUrl = httpFallback;
   }
 
-  // 2. Eğer ana sayfa başarıyla çekildiyse alt sayfaları keşfet ve tara
+  // 2. Alt sayfaları keşfet ve tara
   if (main$) {
     const deepLinks = findDeepContactLinks(main$, targetUrl);
-    
-    // Alt sayfaları paralel olarak (batch) çek
     await Promise.allSettled(deepLinks.map(link => processUrl(link)));
   }
 
-  // 3. Veritabanındaki Mevcut Kayıtlarla Eşleştir
+  // 3. Veritabanı ile eşleştir
   const allLeadsInDb = await db.getAllLeads();
   const dbMap = new Map();
   for (const lead of allLeadsInDb) {
@@ -368,6 +453,7 @@ async function scrapeWebsite(inputUrl) {
       category: meta.category.type,
       priority: meta.category.priority,
       badgeClass: meta.category.badgeClass,
+      isCompanyDomain: meta.category.isCompanyDomain,
       inDatabase: !!existingInDb,
       dbLeadId: existingInDb ? existingInDb.id : null,
       campaignStatus: existingInDb ? existingInDb.status : 'not_started',
@@ -375,12 +461,16 @@ async function scrapeWebsite(inputUrl) {
     });
   }
 
-  // Önceliğe göre sırala (Satın Alma > Yönetim > Satış > Info)
-  results.sort((a, b) => a.priority - b.priority);
+  // Şirket alan adına ait e-postaları ve Satın Alma masalarını en üste al
+  results.sort((a, b) => {
+    if (a.isCompanyDomain && !b.isCompanyDomain) return -1;
+    if (!a.isCompanyDomain && b.isCompanyDomain) return 1;
+    return a.priority - b.priority;
+  });
 
   return {
     targetUrl,
-    hostname: parsedUrl.hostname,
+    hostname: targetHostname,
     companyName,
     scannedPagesCount: scannedPages.length,
     scannedPages,
@@ -394,5 +484,6 @@ module.exports = {
   isValidEmail,
   categorizeEmail,
   extractAllEmailsFromHtml,
-  decodeCloudflareEmail
+  decodeCloudflareEmail,
+  extractCleanHostname
 };
