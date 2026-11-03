@@ -45,6 +45,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // URL Normalizer (Vercel Serverless Function & Local uyumu)
 app.use((req, res, next) => {
+  // Root veya index.html istekleri API'ye dönüştürülmemeli
+  if (req.url === '/' || req.url === '' || req.url.startsWith('/index.html')) {
+    return next();
+  }
   if (req.url === '/api' || req.url === '/api/') {
     req.url = '/api/status';
   } else if (!req.url.startsWith('/api') && !req.url.startsWith('/catalogues')) {
@@ -56,6 +60,11 @@ app.use((req, res, next) => {
 // Statik panel ve katalog dosyalarını sun
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'panel')));
+
+// Ana sayfa yönlendirmesi
+app.get(['/', '/index.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // API Rotaları
 

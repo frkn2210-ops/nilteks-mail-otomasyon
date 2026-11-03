@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nilteks B2B E-Posta & Dijital Katalog Paneli</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              500: '#14b8a6',
+              600: '#0d9488',
+              700: '#0f766e',
+              800: '#115e59',
+              900: '#134e4a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Kitapçık Efekti Stili */
+    .booklet-card {
+      position: relative;
+      border-radius: 4px 10px 10px 4px;
+      border: 1px solid #cbd5e1;
+      border-left: 6px solid #0f766e;
+      box-shadow: -4px 8px 18px rgba(0, 0, 0, 0.18);
+      background-color: #ffffff;
+      overflow: hidden;
+      transition: all 0.25s ease;
+    }
+    .booklet-card:hover {
+      transform: translateY(-4px);
+      box-shadow: -6px 14px 24px rgba(0, 0, 0, 0.25);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans antialiased">
+
+  <!-- Üst Bar / Header -->
+  <header class="bg-gradient-to-r from-brand-900 via-brand-800 to-slate-900 text-white shadow-lg sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-brand-600 flex items-center justify-center shadow-md font-extrabold text-xl text-white">
+          N
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-black text-lg tracking-tight">NİLTEKS</h1>
+            <span class="text-[11px] bg-brand-700/80 border border-brand-500/40 text-teal-200 px-2 py-0.5 rounded-full font-semibold">B2B E-Posta & Katalog Paneli</span>
+          </div>
+          <p class="text-xs text-teal-200/80">Tek E-Postada Görsel Kitapçık Katalogları & Müşteri Keşfi</p>
+        </div>
+      </div>
+
+      <!-- Durum Göstergeleri ve Hızlı Butonlar -->
+      <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+        <!-- Aktif Gönderim Motoru Rozeti -->
+        <div id="engineBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-950/90 border border-emerald-500 text-emerald-200 shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>⚡ Modern Gönderim: mail.niltex.com.tr:587</span>
+        </div>
+
+        <!-- Kendime Test Maili Gönder -->
+        <button onclick="openTestModal()" class="flex items-center gap-1.5 bg-brand-700 hover:bg-brand-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-brand-500/50 shadow-sm transition">
+          <i data-lucide="send" class="w-3.5 h-3.5"></i>
+          <span>Kendime Test Maili Gönder</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Sekmeler / Tabs -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-1 border-t border-brand-800/80 pt-1 overflow-x-auto">
+      <button onclick="switchTab('tab-editor')" id="nav-editor" class="tab-btn active px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-t-lg transition flex items-center gap-2 border-b-2 border-teal-400 text-teal-200 bg-brand-800/50 whitespace-nowrap">
+        <i data-lucide="file-edit" class="w-4 h-4"></i>
+        <span>Tanıtım Yazısı & Katalog Kitapçıkları</span>
+      </button>
+
+      <button onclick="switchTab('tab-sender')" id="nav-sender" class="tab-btn px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-t-lg transition flex items-center gap-2 border-b-2 border-transparent text-slate-300 hover:text-white hover:bg-brand-800/30 whitespace-nowrap">
+        <i data-lucide="mail-search" class="w-4 h-4"></i>
+        <span>Adres Tara / Manuel Ekle & Mail Gönder</span>
+      </button>
+
+      <button onclick="switchTab('tab-logs')" id="nav-logs" class="tab-btn px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-t-lg transition flex items-center gap-2 border-b-2 border-transparent text-slate-300 hover:text-white hover:bg-brand-800/30 whitespace-nowrap">
+        <i data-lucide="history" class="w-4 h-4"></i>
+        <span>Gönderim Geçmişi & Loglar</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Ana İçerik Alanı -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+
+    <!-- İstatistik Kartları -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-500 font-medium">Toplam Müşteri / Lead</p>
+          <h3 id="statTotalLeads" class="text-2xl font-bold text-slate-800 mt-0.5">0</h3>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+          <i data-lucide="users" class="w-5 h-5"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-500 font-medium">Gönderilmeyi Bekleyen</p>
+          <h3 id="statNotStarted" class="text-2xl font-bold text-amber-600 mt-0.5">0</h3>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+          <i data-lucide="hourglass" class="w-5 h-5"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-500 font-medium">Başarıyla Gönderilenler</p>
+          <h3 id="statSent" class="text-2xl font-bold text-emerald-600 mt-0.5">0</h3>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+          <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-500 font-medium">Aktif Katalog Kitapçığı</p>
+          <h3 id="statActiveCatalogues" class="text-2xl font-bold text-blue-600 mt-0.5">5</h3>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
+          <i data-lucide="book-open" class="w-5 h-5"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- SEKME 1: E-POSTA METNİ & KATALOG KİTAPÇIKLARI & ÖNİZLEME -->
+    <!-- ======================================================== -->
+    <section id="tab-editor" class="space-y-6">
+
+      <!-- Bilgi Kutusu -->
+      <div class="bg-teal-50 border border-teal-200 rounded-2xl p-4 text-xs text-teal-900 flex items-start gap-3">
+        <i data-lucide="info" class="w-5 h-5 text-teal-700 flex-shrink-0 mt-0.5"></i>
+        <div class="space-y-1">
+          <p class="font-bold">Yeni Nesil Tek E-Posta & Dijital Katalog Mimarisi</p>
+          <p class="text-teal-800 leading-relaxed">
+            Ağır PDF ekleri göndermek yerine, e-postanızın içinde her bir kataloğunuz <strong>kitapçık kapak görseli</strong> olarak yan yana sıralanır. Müşteri bu görsele veya butona tıkladığında ilgili PDF kataloğu <strong>doğrudan web tarayıcısında açılır</strong>. E-posta boyutu hafif olduğu için ne kota sınırına ne de spam filtrelerine takılmaz!
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Sol Kolon: Metin ve Katalog Editörü (7 Kolon) -->
+        <div class="lg:col-span-7 space-y-6">
+
+          <!-- 1. E-POSTA METNİ FORMU -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+              <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                <i data-lucide="edit-3" class="w-5 h-5 text-brand-700"></i>
+                <span>Tanıtım E-Postası İçeriğini Düzenle</span>
+              </h2>
+              <button onclick="saveCampaignConfig()" id="saveConfigBtn" class="bg-brand-700 hover:bg-brand-800 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm transition flex items-center gap-1.5">
+                <i data-lucide="save" class="w-4 h-4"></i>
+                <span>Değişiklikleri Kaydet</span>
+              </button>
+            </div>
+
+            <!-- Konu Başlığı -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">E-Posta Konu Başlığı (Subject) *</label>
+              <input 
+                type="text" 
+                id="cfgSubject" 
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-brand-600 focus:outline-none"
+                placeholder="Örn: Discover Nil Home | Your Home Textile Manufacturing Partner in Türkiye"
+                oninput="triggerPreviewRefreshDebounced()"
+              />
+            </div>
+
+            <!-- Tanıtım Yazısı (Intro) -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-bold text-slate-700">Tanıtım Yazısı (Katalogların Üstünde Yer Alır) *</label>
+                <span class="text-[11px] text-slate-400">Paragraflar arasına boşluk bırakabilirsiniz</span>
+              </div>
+              <textarea 
+                id="cfgIntroText" 
+                rows="7"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm font-sans leading-relaxed focus:ring-2 focus:ring-brand-600 focus:outline-none"
+                placeholder="Firmanızı tanıtan giriş mesajı..."
+                oninput="triggerPreviewRefreshDebounced()"
+              ></textarea>
+            </div>
+
+            <!-- Kapanış ve İmza -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Kapanış Notu ve İmza Bilgileri *</label>
+              <textarea 
+                id="cfgClosingText" 
+                rows="4"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm font-sans leading-relaxed focus:ring-2 focus:ring-brand-600 focus:outline-none"
+                placeholder="İmza ve iletişim..."
+                oninput="triggerPreviewRefreshDebounced()"
+              ></textarea>
+            </div>
+
+            <!-- Genel Yayın / Vercel Domain Adresi -->
+            <div class="pt-3 border-t border-slate-100">
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-bold text-slate-700">Genel Yayın / Vercel Web Adresi (PDF ve Kapak Linkleri)</label>
+                <span class="text-[11px] text-teal-700 font-semibold">Müşterilerin 7/24 PDF Açabilmesi İçin</span>
+              </div>
+              <div class="relative">
+                <input 
+                  type="url" 
+                  id="cfgPublicBaseUrl" 
+                  class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm font-mono focus:ring-2 focus:ring-brand-600 focus:outline-none"
+                  placeholder="https://nilteks-mail-otomasyon.vercel.app"
+                  oninput="triggerPreviewRefreshDebounced()"
+                />
+                <i data-lucide="globe" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1">E-postalardaki kitapçık kapakları ve "Kataloğu Aç" butonları bu genel adrese bağlanır.</p>
+            </div>
+          </div>
+
+          <!-- 2. KATALOG KİTAPÇIKLARI LİSTESİ VE YÖNETİMİ -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
+              <div>
+                <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <i data-lucide="book-open" class="w-5 h-5 text-brand-700"></i>
+                  <span>Mailde Yer Alacak Katalog Kitapçıkları</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Kitapçık kapaklarını açıp kapatabilir veya yeni PDF katalog yükleyebilirsiniz.</p>
+              </div>
+
+              <button onclick="openAddCatalogModal()" class="bg-teal-50 hover:bg-teal-100 text-brand-800 border border-brand-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 self-start sm:self-auto">
+                <i data-lucide="plus-circle" class="w-4 h-4 text-brand-700"></i>
+                <span>Yeni PDF Katalog Ekle</span>
+              </button>
+            </div>
+
+            <!-- Kitapçık Kartları Listesi -->
+            <div id="cataloguesList" class="space-y-3">
+              <!-- Dinamik Yüklenir -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Sağ Kolon: CANLI E-POSTA ÖNİZLEMESİ (5 Kolon) -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 sticky top-20">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-3">
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                <h3 class="font-bold text-slate-900 text-sm">Canlı E-Posta Önizlemesi</h3>
+              </div>
+              <button onclick="refreshPreview()" class="text-xs text-slate-500 hover:text-brand-700 flex items-center gap-1">
+                <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+                <span>Yenile</span>
+              </button>
+            </div>
+
+            <p class="text-[11px] text-slate-500 mb-3">
+              Müşterinizin gelen kutusunda göreceği e-posta tasarımı aşağıdadır. Kitapçıklara tıklayarak PDF'in tarayıcıda açılışını test edebilirsiniz:
+            </p>
+
+            <!-- Önizleme iFrame -->
+            <div class="border border-slate-200 rounded-xl overflow-hidden bg-slate-100 shadow-inner">
+              <iframe id="emailPreviewIframe" src="/api/campaign/preview" class="w-full h-[620px] bg-white border-0"></iframe>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- SEKME 2: ADRES TARA / MANUEL E-POSTA GİR & GÖNDER        -->
+    <!-- ======================================================== -->
+    <section id="tab-sender" class="hidden space-y-6">
+
+      <!-- HIZLI MANUEL GÖNDERİM KART (Doğrudan E-Posta Gir) -->
+      <div class="bg-gradient-to-br from-brand-900 via-brand-800 to-slate-900 text-white rounded-2xl p-5 sm:p-6 shadow-md border border-brand-700/60">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+          <h2 class="text-base sm:text-lg font-bold flex items-center gap-2 text-white">
+            <i data-lucide="send" class="w-5 h-5 text-teal-300"></i>
+            <span>Doğrudan E-Posta Adresine Tanıtım Maili Gönder</span>
+          </h2>
+          <span class="text-[11px] bg-teal-400/20 text-teal-200 border border-teal-400/40 px-2.5 py-0.5 rounded-full font-bold self-start sm:self-auto">
+            ⚡ 1 Tıkla Anında Gönderim
+          </span>
+        </div>
+        <p class="text-xs text-teal-100/80 mb-4 max-w-3xl leading-relaxed">
+          Hedef firmanın e-postasını girin. Sistem hazırladığınız tanıtım yazısını ve yan yana sıralı kitapçık katalog bağlantılarını içeren şık e-postayı anında iletir.
+        </p>
+
+        <form id="directSendForm" onsubmit="handleDirectSend(event)" class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+          <div class="sm:col-span-5">
+            <label class="block text-xs text-teal-200 mb-1 font-semibold">Hedef E-Posta Adresi *</label>
+            <div class="relative">
+              <input 
+                type="email" 
+                id="directTargetEmail" 
+                placeholder="Örn: purchasing@cottoncompany.de" 
+                required 
+                class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-800/95 text-white placeholder-slate-400 border border-teal-500/50 text-xs focus:ring-2 focus:ring-teal-400 focus:outline-none"
+              />
+              <i data-lucide="mail" class="w-4 h-4 text-teal-300 absolute left-3 top-3"></i>
+            </div>
+          </div>
+
+          <div class="sm:col-span-4">
+            <label class="block text-xs text-teal-200 mb-1 font-semibold">Firma Adı (İsteğe Bağlı)</label>
+            <input 
+              type="text" 
+              id="directTargetCompany" 
+              placeholder="Örn: German Textiles GmbH" 
+              class="w-full px-3 py-2.5 rounded-xl bg-slate-800/95 text-white placeholder-slate-400 border border-teal-500/50 text-xs focus:ring-2 focus:ring-teal-400 focus:outline-none"
+            />
+          </div>
+
+          <div class="sm:col-span-3 flex items-end gap-2">
+            <button 
+              type="submit" 
+              id="directSendBtn" 
+              class="flex-1 bg-teal-400 hover:bg-teal-300 text-slate-950 font-black text-xs py-2.5 px-3 rounded-xl shadow-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap"
+              title="Doğrudan kurumsal sunucu üzerinden anında gönder"
+            >
+              <i data-lucide="send" class="w-4 h-4"></i>
+              <span>Hemen Gönder</span>
+            </button>
+            <button 
+              type="button" 
+              onclick="handleDirectOpenOutlook()"
+              id="directOpenOutlookBtn" 
+              class="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2.5 px-3 rounded-xl shadow-lg transition flex items-center justify-center gap-1.5 whitespace-nowrap"
+              title="Mesajı Mac Microsoft Outlook (Yeni Düzen) uygulamasında aç"
+            >
+              <i data-lucide="external-link" class="w-4 h-4"></i>
+              <span>Outlook'ta Aç</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- WEB SİTESİ TARAMA ALANI -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
+        <div class="max-w-3xl">
+          <div class="flex items-center gap-2">
+            <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="globe" class="w-5 h-5 text-brand-700"></i>
+              <span>Web Sitesi URL'sinden E-Posta Adreslerini Tara</span>
+            </h2>
+            <span class="bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2 py-0.5 rounded-full">Derin Tarayıcı</span>
+          </div>
+          <p class="text-sm text-slate-500 mt-1">
+            Firmanın web sitesi adresini girin. Sistem ana sayfa ile birlikte İletişim, Satın Alma, Impressum sayfalarını tarar; gizlenmiş tüm e-postaları listeler.
+          </p>
+        </div>
+
+        <form id="scrapeForm" onsubmit="handleScrape(event)" class="mt-4 flex flex-col sm:flex-row gap-3">
+          <div class="relative flex-1">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <i data-lucide="link" class="w-4 h-4"></i>
+            </div>
+            <input 
+              type="text" 
+              id="targetUrl" 
+              placeholder="Örn: firmadisi.de veya https://example-hoteltextile.com" 
+              class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent text-sm transition shadow-sm"
+              required
+            />
+          </div>
+          <button 
+            type="submit" 
+            id="scrapeBtn"
+            class="bg-brand-700 hover:bg-brand-800 text-white font-semibold px-6 py-2.5 rounded-xl text-sm shadow-md transition flex items-center justify-center gap-2 whitespace-nowrap"
+          >
+            <i data-lucide="search" class="w-4 h-4"></i>
+            <span>Adresleri Tara</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Tarama Sonuçları Tablosu -->
+      <div id="scrapeResultsCard" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+          <div>
+            <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+              <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i>
+              <span>Bulunan E-posta Adresleri</span>
+              <span id="scrapedCountBadge" class="ml-2 bg-brand-100 text-brand-800 text-xs px-2.5 py-0.5 rounded-full font-bold">0 Adres</span>
+            </h3>
+            <p id="scrapedMetaText" class="text-xs text-slate-500 mt-0.5"></p>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-100/75 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                <th class="py-3 px-4">E-posta Adresi</th>
+                <th class="py-3 px-4">Kategori</th>
+                <th class="py-3 px-4">Bulunan Sayfa</th>
+                <th class="py-3 px-4">Durum</th>
+                <th class="py-3 px-4 text-right">Eylem</th>
+              </tr>
+            </thead>
+            <tbody id="scrapedTableBody" class="divide-y divide-slate-200 text-sm">
+              <!-- Dinamik satırlar -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- MÜŞTERİ LİSTESİ VE GÖNDERİM DURUMLARI TABLOSU -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-3">
+          <div>
+            <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+              <i data-lucide="users" class="w-4 h-4 text-brand-700"></i>
+              <span>Kayıtlı Müşteri Listesi & Gönderim Durumu</span>
+            </h3>
+            <p class="text-xs text-slate-500">Daha önce eklenen veya taranan tüm potansiyel müşteriler</p>
+          </div>
+          <button onclick="loadLeads()" class="p-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-600 transition" title="Yenile">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-100/75 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                <th class="py-3 px-4">Müşteri E-Posta</th>
+                <th class="py-3 px-4">Firma Adı</th>
+                <th class="py-3 px-4">Durum</th>
+                <th class="py-3 px-4">Gönderim Tarihi</th>
+                <th class="py-3 px-4 text-right">İşlem</th>
+              </tr>
+            </thead>
+            <tbody id="leadsTableBody" class="divide-y divide-slate-200 text-sm">
+              <!-- Dinamik -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- SEKME 3: GÖNDERİM GEÇMİŞİ & LOGLAR                       -->
+    <!-- ======================================================== -->
+    <section id="tab-logs" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="history" class="w-5 h-5 text-brand-700"></i>
+              <span>E-Posta Gönderim Logları</span>
+            </h2>
+            <p class="text-xs text-slate-500">Sistem üzerinden iletilen tüm tanıtım e-postalarının geçmişi</p>
+          </div>
+          <button onclick="loadLogs()" class="p-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-600 transition" title="Yenile">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-100/75 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                <th class="py-3 px-4">Tarih</th>
+                <th class="py-3 px-4">Alıcı E-posta</th>
+                <th class="py-3 px-4">Konu</th>
+                <th class="py-3 px-4">İçerik</th>
+                <th class="py-3 px-4 text-right">Durum</th>
+              </tr>
+            </thead>
+            <tbody id="logsTableBody" class="divide-y divide-slate-200 text-sm">
+              <!-- Dinamik -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ======================================================== -->
+  <!-- MODALLAR                                                 -->
+  <!-- ======================================================== -->
+
+  <!-- 1. YENİ PDF KATALOG YÜKLEME MODALI -->
+  <div id="addCatalogModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <i data-lucide="file-plus" class="w-5 h-5 text-brand-700"></i>
+          <span>Yeni PDF Katalog Ekle</span>
+        </h3>
+        <button onclick="closeAddCatalogModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-500 mb-4">
+        Yükleyeceğiniz PDF'in 1. sayfası otomatik olarak <strong>kitapçık kapağı</strong> haline getirilecek ve e-postanıza eklenecektir.
+      </p>
+
+      <form id="uploadCatalogForm" onsubmit="handleCatalogUpload(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Katalog Başlığı *</label>
+          <input type="text" id="newCatTitle" placeholder="Örn: Hotel & Spa Collection" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-brand-600 focus:outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Alt Açıklama (İsteğe Bağlı)</label>
+          <input type="text" id="newCatSubtitle" placeholder="Örn: Luxury Bathrobes & Slippers" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-brand-600 focus:outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Katalog PDF Dosyası *</label>
+          <input type="file" id="newCatFile" accept="application/pdf" required class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Özel Web Linki (İsteğe Bağlı)</label>
+          <input type="url" id="newCatCustomUrl" placeholder="Boş bırakırsanız sunucudaki PDF otomatik açılır" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-brand-600 focus:outline-none" />
+          <span class="text-[10px] text-slate-400 mt-0.5 block">Örn: https://niltex.com.tr/kataloglar/spa.pdf veya Google Drive linki</span>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeAddCatalogModal()" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl">İptal</button>
+          <button type="submit" id="uploadSubmitBtn" class="bg-brand-700 hover:bg-brand-800 text-white font-bold text-xs px-5 py-2 rounded-xl flex items-center gap-1.5 transition">
+            <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+            <span>Yükle ve Kapağı Oluştur</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. KENDİME TEST MAİLİ GÖNDER MODALI -->
+  <div id="testModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <i data-lucide="send" class="w-5 h-5 text-brand-700"></i>
+          <span>Kendime Test Maili Gönder</span>
+        </h3>
+        <button onclick="closeTestModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="mb-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900">
+        <p class="font-bold flex items-center gap-1.5 text-blue-950">
+          <i data-lucide="info" class="w-4 h-4 text-blue-700"></i>
+          <span id="modalActiveEngineLabel">Aktif Motor: Microsoft Outlook</span>
+        </p>
+        <p class="mt-1 text-blue-800 text-[11px] leading-relaxed">
+          Hazırladığınız tanıtım yazısı ve kitapçık katalog bağlantılarını içeren e-posta kendi adresinize gönderilir. Gelen kutunuzdan tasarımı inceleyebilirsiniz.
+        </p>
+      </div>
+
+      <form onsubmit="handleTestSend(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Test E-Posta Adresiniz</label>
+          <input 
+            type="email" 
+            id="testRecipientEmail" 
+            placeholder="furkan@nilteks.com.tr" 
+            value="furkan@nilteks.com.tr"
+            class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-brand-600 focus:outline-none" 
+            required 
+          />
+        </div>
+
+        <div id="testModalResult" class="hidden text-xs p-3 rounded-xl"></div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeTestModal()" class="px-3.5 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl">Kapat</button>
+          <button type="submit" id="testModalSubmitBtn" class="bg-brand-700 hover:bg-brand-800 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 transition">
+            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+            <span>Test Mailini Gönder</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Bildirimi -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden transition-all duration-300 transform translate-y-2">
+    <div id="toastContent" class="px-4 py-3 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2 text-white"></div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- JAVASCRIPT LOGIC                                         -->
+  <!-- ======================================================== -->
+  <script>
+    let currentConfig = null;
+    let currentEngineMode = 'outlook';
+    let previewDebounceTimer = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      checkSystemStatus();
+      loadCampaignConfig();
+      loadLeads();
+      loadLogs();
+    });
+
+    // Sekme Değiştirme
+    function switchTab(tabId) {
+      document.querySelectorAll('main > section').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('border-teal-400', 'text-teal-200', 'bg-brand-800/50');
+        btn.classList.add('border-transparent', 'text-slate-300');
+      });
+
+      document.getElementById(tabId).classList.remove('hidden');
+      const activeNav = document.getElementById(tabId.replace('tab-', 'nav-'));
+      if (activeNav) {
+        activeNav.classList.remove('border-transparent', 'text-slate-300');
+        activeNav.classList.add('border-teal-400', 'text-teal-200', 'bg-brand-800/50');
+      }
+      lucide.createIcons();
+    }
+
+    // Sistem ve Motor Durumunu Kontrol Et
+    async function checkSystemStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        if (data.success) {
+          updateEngineUI(data.engine, data.outlook);
+          updateStats(data.stats);
+        }
+      } catch (err) {
+        console.error('Status check error:', err);
+      }
+    }
+
+    function updateEngineUI(engine, connection) {
+      const badge = document.getElementById('engineBadge');
+      const modalLabel = document.getElementById('modalActiveEngineLabel');
+
+      if (modalLabel) modalLabel.textContent = 'Aktif Motor: Modern Kurumsal Gönderim (mail.niltex.com.tr:587)';
+      badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-950/90 border border-emerald-500 text-emerald-200 shadow-sm";
+      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>⚡ Modern Gönderim: mail.niltex.com.tr:587</span>`;
+      lucide.createIcons();
+    }
+
+    function updateStats(stats) {
+      if (!stats) return;
+      document.getElementById('statTotalLeads').textContent = stats.totalLeads || 0;
+      document.getElementById('statNotStarted').textContent = stats.notStarted || 0;
+      document.getElementById('statSent').textContent = stats.sent || 0;
+    }
+
+    // Kampanya Konfigürasyonunu Yükle
+    async function loadCampaignConfig() {
+      try {
+        const res = await fetch('/api/campaign/config');
+        const data = await res.json();
+        if (data.success && data.config) {
+          currentConfig = data.config;
+          document.getElementById('cfgSubject').value = currentConfig.subject || '';
+          document.getElementById('cfgIntroText').value = currentConfig.introText || '';
+          document.getElementById('cfgClosingText').value = currentConfig.closingText || '';
+          if (document.getElementById('cfgPublicBaseUrl')) {
+            document.getElementById('cfgPublicBaseUrl').value = currentConfig.publicBaseUrl || '';
+          }
+          renderCataloguesList(currentConfig.catalogues || []);
+          document.getElementById('statActiveCatalogues').textContent = (currentConfig.catalogues || []).filter(c => c.enabled !== false).length;
+        }
+      } catch (err) {
+        console.error('Config load error:', err);
+      }
+    }
+
+    // Katalog Kitapçıkları Listesini Render Et
+    function renderCataloguesList(catalogues) {
+      const listContainer = document.getElementById('cataloguesList');
+      listContainer.innerHTML = '';
+
+      if (catalogues.length === 0) {
+        listContainer.innerHTML = `
+          <div class="text-center py-6 text-slate-400 text-xs">
+            Henüz katalog eklenmemiş. Yukarıdaki "Yeni PDF Katalog Ekle" butonuna tıklayarak ilk kataloğunuzu ekleyin.
+          </div>
+        `;
+        return;
+      }
+
+      catalogues.forEach((cat, idx) => {
+        const isEnabled = cat.enabled !== false;
+        const coverSrc = `/api/covers/${encodeURIComponent(cat.coverImage)}`;
+        const pdfViewerUrl = (cat.customUrl && cat.customUrl.startsWith('http'))
+          ? cat.customUrl
+          : `/catalogues/view/${encodeURIComponent(cat.filename)}`;
+
+        const card = document.createElement('div');
+        card.className = `p-3.5 rounded-xl border transition flex items-center justify-between gap-4 ${isEnabled ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-200 opacity-60'}`;
+        card.innerHTML = `
+          <div class="flex items-center gap-3.5 min-w-0">
+            <!-- Kitapçık Küçük Görseli -->
+            <div class="booklet-card flex-shrink-0 w-12 h-16 bg-white overflow-hidden flex items-center justify-center">
+              <img src="${coverSrc}" alt="${cat.title}" class="w-full h-full object-cover" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%2250%%22 x=%2250%%22 text-anchor=%22middle%22 font-size=%2220%22>PDF</text></svg>'" />
+            </div>
+
+            <!-- Bilgiler -->
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-900 text-xs sm:text-sm truncate">${cat.title}</span>
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded ${isEnabled ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-200 text-slate-600'}">
+                  ${isEnabled ? '✓ Mailde Aktif' : 'Pasif'}
+                </span>
+              </div>
+              <p class="text-xs text-slate-500 truncate mt-0.5">${cat.subtitle || 'Katalog'}</p>
+              <div class="flex items-center gap-3 mt-1 text-[11px]">
+                <a href="${pdfViewerUrl}" target="_blank" class="text-teal-700 hover:text-teal-900 font-semibold flex items-center gap-1">
+                  <i data-lucide="external-link" class="w-3 h-3"></i>
+                  <span>PDF'i Tarayıcıda Aç</span>
+                </a>
+                <span class="text-slate-300">&bull;</span>
+                <span class="text-slate-400 font-mono text-[10px]">${cat.filename}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Eylemler -->
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <!-- Aç / Kapat Butonu -->
+            <button onclick="toggleCatalogItem('${cat.id}')" title="${isEnabled ? 'Mailden Gizle' : 'Maile Dahil Et'}" class="px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition ${isEnabled ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'}">
+              ${isEnabled ? 'Gizle' : 'Aktif Et'}
+            </button>
+
+            <!-- Sil Butonu -->
+            <button onclick="deleteCatalogItem('${cat.id}', '${cat.title}')" title="Kataloğu Sil" class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        `;
+        listContainer.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    // Katalog Aç/Kapat
+    async function toggleCatalogItem(id) {
+      try {
+        const res = await fetch(`/api/catalogues/toggle/${id}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          loadCampaignConfig();
+          refreshPreview();
+        }
+      } catch (err) {
+        showToast('Hata: ' + err.message, 'error');
+      }
+    }
+
+    // Katalog Sil
+    async function deleteCatalogItem(id, title) {
+      if (!confirm(`"${title}" kataloğunu kaldırmak istediğinize emin misiniz?`)) return;
+      try {
+        const res = await fetch(`/api/catalogues/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Katalog kaldırıldı.', 'success');
+          loadCampaignConfig();
+          refreshPreview();
+        }
+      } catch (err) {
+        showToast('Hata: ' + err.message, 'error');
+      }
+    }
+
+    // Yeni Katalog Yükleme Modalı
+    function openAddCatalogModal() {
+      document.getElementById('addCatalogModal').classList.remove('hidden');
+    }
+    function closeAddCatalogModal() {
+      document.getElementById('addCatalogModal').classList.add('hidden');
+    }
+
+    async function handleCatalogUpload(e) {
+      e.preventDefault();
+      const title = document.getElementById('newCatTitle').value.trim();
+      const subtitle = document.getElementById('newCatSubtitle').value.trim();
+      const customUrl = document.getElementById('newCatCustomUrl').value.trim();
+      const fileInput = document.getElementById('newCatFile');
+      const submitBtn = document.getElementById('uploadSubmitBtn');
+
+      if (!fileInput.files || fileInput.files.length === 0) {
+        showToast('Lütfen bir PDF dosyası seçin.', 'error');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('title', title);
+      formData.append('subtitle', subtitle);
+      formData.append('customUrl', customUrl);
+      formData.append('catalogPdf', fileInput.files[0]);
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>İşleniyor & Kapak Üretiliyor...</span>`;
+      lucide.createIcons();
+
+      try {
+        const res = await fetch('/api/catalogues/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          closeAddCatalogModal();
+          document.getElementById('uploadCatalogForm').reset();
+          loadCampaignConfig();
+          refreshPreview();
+        } else {
+          showToast(data.error || 'Yükleme başarısız', 'error');
+        }
+      } catch (err) {
+        showToast('Hata: ' + err.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i data-lucide="upload" class="w-3.5 h-3.5"></i><span>Yükle ve Kapağı Oluştur</span>`;
+        lucide.createIcons();
+      }
+    }
+
+    // Değişiklikleri Kaydet
+    async function saveCampaignConfig() {
+      if (!currentConfig) return;
+      const subject = document.getElementById('cfgSubject').value.trim();
+      const introText = document.getElementById('cfgIntroText').value.trim();
+      const closingText = document.getElementById('cfgClosingText').value.trim();
+      const btn = document.getElementById('saveConfigBtn');
+
+      currentConfig.subject = subject;
+      currentConfig.introText = introText;
+      currentConfig.closingText = closingText;
+      const pubUrlInput = document.getElementById('cfgPublicBaseUrl');
+      if (pubUrlInput) currentConfig.publicBaseUrl = pubUrlInput.value.trim();
+
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Kaydediliyor...</span>`;
+      lucide.createIcons();
+
+      try {
+        const res = await fetch('/api/campaign/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(currentConfig)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          refreshPreview();
+        } else {
+          showToast(data.error || 'Kaydedilemedi', 'error');
+        }
+      } catch (err) {
+        showToast('Hata: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i><span>Değişiklikleri Kaydet</span>`;
+        lucide.createIcons();
+      }
+    }
+
+    // Canlı Önizlemeyi Yenile
+    function triggerPreviewRefreshDebounced() {
+      clearTimeout(previewDebounceTimer);
+      previewDebounceTimer = setTimeout(() => {
+        saveCampaignConfigSilently();
+      }, 700);
+    }
+
+    async function saveCampaignConfigSilently() {
+      if (!currentConfig) return;
+      currentConfig.subject = document.getElementById('cfgSubject').value.trim();
+      currentConfig.introText = document.getElementById('cfgIntroText').value.trim();
+      currentConfig.closingText = document.getElementById('cfgClosingText').value.trim();
+      const pubUrlInput = document.getElementById('cfgPublicBaseUrl');
+      if (pubUrlInput) currentConfig.publicBaseUrl = pubUrlInput.value.trim();
+
+      try {
+        await fetch('/api/campaign/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(currentConfig)
+        });
+        refreshPreview();
+      } catch {}
+    }
+
+    function refreshPreview() {
+      const iframe = document.getElementById('emailPreviewIframe');
+      iframe.src = '/api/campaign/preview?t=' + Date.now();
+    }
+
+    // ==========================================
+    // DOĞRUDAN E-POSTA GÖNDERİMİ
+    // ==========================================
+    async function handleDirectSend(e) {
+      e.preventDefault();
+      const email = document.getElementById('directTargetEmail').value.trim();
+      const company_name = document.getElementById('directTargetCompany').value.trim();
+      const btn = document.getElementById('directSendBtn');
+
+      if (!email) return;
+
+      if (!confirm(`"${email}" adresine görsel kitapçık katalog bağlantılarını içeren tanıtım maili gönderilecek. Onaylıyor musunuz?`)) {
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Gönderiliyor...</span>`;
+      lucide.createIcons();
+
+      try {
+        const res = await fetch('/api/campaign/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, company_name, source_url: 'Doğrudan Gönderim' })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          document.getElementById('directTargetEmail').value = '';
+          document.getElementById('directTargetCompany').value = '';
+          checkSystemStatus();
+          loadLeads();
+          loadLogs();
+        } else {
+          showToast(data.error || 'Gönderilemedi', 'error');
+        }
+      } catch (err) {
+        showToast('Hata: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="send" class="w-4 h-4"></i><span>Hemen Gönder</span>`;
+        lucide.createIcons();
+      }
+    }
+
+    // Doğrudan Yeni Outlook'ta Aç (Formdan)
+    async function handleDirectOpenOutlook() {
+      const email = document.getElementById('directTargetEmail').value.trim();
+      const company_name = document.getElementById('directTargetCompany').value.trim();
+      const btn = document.getElementById('directOpenOutlookBtn');
+
+      if (!email) {
+        showToast('Lütfen hedef e-posta adresini girin.', 'error');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Açılıyor...</span>`;
+      lucide.createIcons();
+
+      try {
+        const res = await fetch('/api/campaign/open-outlook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, company_name })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+        } else {
+          showToast(data.error || 'Açılamadı', 'error');
+        }
+      } catch (err) {
+        showToast('Hata: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="external-link" class="w-4 h-4"></i><span>Outlook'ta Aç</span>`;
+        lucide.createIcons();
+      }
+    }
+
+    // Belirli bir müşteriyi Yeni Outlook'ta Aç
+    async function openLeadInOutlook(email, company_name) {
+      showToast(`Yeni Outlook hazırlanıyor (${email})...`, 'info');
+      try {
+        const res = await fetch('/api/campaign/open-outlook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, company_name })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+        } else {
+          showToast(data.error || 'Açılamadı', 'error');
+        }
+      } catch (err) {
+        showToast('Hata: ' + err.message, 'error');
+      }
+    }
+
+    // Belirli bir müşteriye e-posta gönder (Listeden)
+    async function sendEmailToLead(email, company_name) {
+      if (!confirm(`"${email}" adresine tanıtım e-postası gönderilsin mi?`)) return;
+
+      showToast(`Tanıtım e-postası gönderiliyor (${email})...`, 'info');
+      try {
+        const res = await fetch('/api/campaign/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, company_name })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message, 'success');
+          checkSystemStatus();
+          loadLeads();
+          loadLogs();
+        } else {
+          showToast(data.error || 'Gönderilemedi', 'error');
+        }
+      } catch (err) {
+        showToast('Hata: ' + err.message, 'error');
+      }
+    }
+
+    // ==========================================
+    // WEB SCRAPER
+    // ==========================================
+    async function handleScrape(e) {
+      e.preventDefault();
+      const url = document.getElementById('targetUrl').value.trim();
+      const btn = document.getElementById('scrapeBtn');
+      const resultsCard = document.getElementById('scrapeResultsCard');
+
+      if (!url) return;
+
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Taranıyor...</span>`;
+      lucide.createIcons();
+
+      try {
+        const res = await fetch('/api/scrape', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+        if (data.success) {
+          renderScrapeResults(data.data);
+        } else {
+          showToast(data.error || 'Tarama başarısız oldu.', 'error');
+        }
+      } catch (err) {
+        showToast('Hata: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="search" class="w-4 h-4"></i><span>Adresleri Tara</span>`;
+        lucide.createIcons();
+      }
+    }
+
+    function renderScrapeResults(data) {
+      const resultsCard = document.getElementById('scrapeResultsCard');
+      const tbody = document.getElementById('scrapedTableBody');
+      const countBadge = document.getElementById('scrapedCountBadge');
+      const metaText = document.getElementById('scrapedMetaText');
+
+      tbody.innerHTML = '';
+      countBadge.textContent = `${data.emailsFound} Adres Bulundu`;
+      metaText.textContent = `Hedef: ${data.hostname} &bull; Taranan Sayfa: ${data.scannedPagesCount}`;
+
+      if (data.results.length === 0) {
+        tbody.innerHTML = `
+          <tr><td colspan="5" class="py-8 text-center text-slate-500 text-xs">Bu sitede e-posta adresi bulunamadı.</td></tr>
+        `;
+      } else {
+        data.results.forEach(item => {
+          tbody.innerHTML += `
+            <tr class="hover:bg-slate-50 transition text-xs">
+              <td class="py-3 px-4 font-mono font-bold text-slate-900">${item.email}</td>
+              <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[11px] font-semibold ${item.badgeClass}">${item.category}</span></td>
+              <td class="py-3 px-4 text-slate-500 truncate max-w-xs">${item.sourceUrl}</td>
+              <td class="py-3 px-4">
+                <span class="inline-flex items-center gap-1 text-slate-600 font-medium">Bekliyor</span>
+              </td>
+              <td class="py-3 px-4 text-right flex items-center justify-end gap-1.5">
+                <button onclick="sendEmailToLead('${item.email}', '${item.companyName}')" class="bg-brand-700 hover:bg-brand-800 text-white font-bold px-3 py-1.5 rounded-lg transition inline-flex items-center gap-1 shadow-sm">
+                  <i data-lucide="send" class="w-3 h-3"></i>
+                  <span>Hemen Gönder</span>
+                </button>
+                <button onclick="openLeadInOutlook('${item.email}', '${item.companyName}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1.5 rounded-lg transition inline-flex items-center gap-1 shadow-sm" title="Microsoft Outlook'ta Aç">
+                  <i data-lucide="external-link" class="w-3 h-3"></i>
+                  <span>Outlook</span>
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+      }
+
+      resultsCard.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    // ==========================================
+    // MÜŞTERİ LİSTESİ (LEADS)
+    // ==========================================
+    async function loadLeads() {
+      try {
+        const res = await fetch('/api/leads');
+        const data = await res.json();
+        if (data.success) {
+          renderLeadsTable(data.leads || []);
+        }
+      } catch (err) {
+        console.error('Leads load error:', err);
+      }
+    }
+
+    function renderLeadsTable(leads) {
+      const tbody = document.getElementById('leadsTableBody');
+      tbody.innerHTML = '';
+
+      if (leads.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 text-xs">Henüz kayıtlı müşteri bulunmuyor.</td></tr>`;
+        return;
+      }
+
+      leads.forEach(lead => {
+        const isSent = lead.status === 'sent' || lead.status === 'completed';
+        const badge = isSent
+          ? `<span class="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full text-xs font-semibold">✓ Gönderildi</span>`
+          : `<span class="inline-flex items-center gap-1 text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full text-xs font-semibold">Bekliyor</span>`;
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition text-xs">
+            <td class="py-2.5 px-4 font-mono font-medium text-slate-900">${lead.email}</td>
+            <td class="py-2.5 px-4 text-slate-600">${lead.company_name || '-'}</td>
+            <td class="py-2.5 px-4">${badge}</td>
+            <td class="py-2.5 px-4 text-slate-500">${lead.step1_sent_at ? new Date(lead.step1_sent_at).toLocaleString('tr-TR') : '-'}</td>
+            <td class="py-2.5 px-4 text-right flex items-center justify-end gap-1.5">
+              <button onclick="sendEmailToLead('${lead.email}', '${lead.company_name || ''}')" class="bg-brand-700 hover:bg-brand-800 text-white font-bold px-2.5 py-1 rounded-lg transition inline-flex items-center gap-1 shadow-sm">
+                <i data-lucide="send" class="w-3 h-3"></i>
+                <span>${isSent ? 'Tekrar Gönder' : 'Gönder'}</span>
+              </button>
+              <button onclick="openLeadInOutlook('${lead.email}', '${lead.company_name || ''}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2 py-1 rounded-lg transition inline-flex items-center gap-1 shadow-sm" title="Microsoft Outlook'ta Aç">
+                <i data-lucide="external-link" class="w-3 h-3"></i>
+                <span>Outlook</span>
+              </button>
+              <button onclick="deleteLead(${lead.id})" title="Sil" class="p-1 text-slate-400 hover:text-red-600 transition">
+                <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+
+      lucide.createIcons();
+    }
+
+    async function deleteLead(id) {
+      if (!confirm('Bu müşteriyi silmek istediğinize emin misiniz?')) return;
+      try {
+        const res = await fetch(`/api/leads/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Müşteri silindi.', 'success');
+          loadLeads();
+          checkSystemStatus();
+        }
+      } catch (err) {
+        showToast('Hata: ' + err.message, 'error');
+      }
+    }
+
+    // ==========================================
+    // LOGLAR
+    // ==========================================
+    async function loadLogs() {
+      try {
+        const res = await fetch('/api/logs');
+        const data = await res.json();
+        if (data.success) {
+          renderLogsTable(data.logs || []);
+        }
+      } catch (err) {
+        console.error('Logs error:', err);
+      }
+    }
+
+    function renderLogsTable(logs) {
+      const tbody = document.getElementById('logsTableBody');
+      tbody.innerHTML = '';
+
+      if (logs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400 text-xs">Henüz gönderim kaydı bulunmuyor.</td></tr>`;
+        return;
+      }
+
+      logs.forEach(log => {
+        const isSuccess = log.status === 'success';
+        const badge = isSuccess
+          ? `<span class="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full text-xs font-semibold">✓ Başarılı</span>`
+          : `<span class="inline-flex items-center gap-1 text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full text-xs font-semibold">✕ Hata</span>`;
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition text-xs">
+            <td class="py-2.5 px-4 text-slate-500 whitespace-nowrap">${new Date(log.sent_at).toLocaleString('tr-TR')}</td>
+            <td class="py-2.5 px-4 font-mono font-medium text-slate-900">${log.email}</td>
+            <td class="py-2.5 px-4 text-slate-700 font-semibold truncate max-w-xs">${log.subject}</td>
+            <td class="py-2.5 px-4 text-slate-500 font-mono text-[11px]">${log.attachment_name || 'Katalog Kitapçıkları'}</td>
+            <td class="py-2.5 px-4 text-right">${badge}</td>
+          </tr>
+        `;
+      });
+      lucide.createIcons();
+    }
+
+    // ==========================================
+    // TEST MAİLİ MODALI
+    // ==========================================
+    function openTestModal() {
+      document.getElementById('testModal').classList.remove('hidden');
+      document.getElementById('testModalResult').classList.add('hidden');
+    }
+    function closeTestModal() {
+      document.getElementById('testModal').classList.add('hidden');
+    }
+
+    async function handleTestSend(e) {
+      e.preventDefault();
+      const to = document.getElementById('testRecipientEmail').value.trim();
+      const btn = document.getElementById('testModalSubmitBtn');
+      const resBox = document.getElementById('testModalResult');
+
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Gönderiliyor...</span>`;
+      lucide.createIcons();
+
+      resBox.className = "text-xs p-3 rounded-xl bg-slate-100 text-slate-600";
+      resBox.textContent = "Test e-postası iletiliyor...";
+      resBox.classList.remove('hidden');
+
+      try {
+        const res = await fetch('/api/mail/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to })
+        });
+        const data = await res.json();
+        if (data.success) {
+          resBox.className = "text-xs p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800";
+          resBox.innerHTML = `<strong>Tebrikler!</strong> ${data.message}`;
+          checkSystemStatus();
+          loadLogs();
+        } else {
+          resBox.className = "text-xs p-3 rounded-xl bg-red-50 border border-red-200 text-red-800";
+          resBox.innerHTML = `<strong>Hata:</strong> ${data.error}`;
+        }
+      } catch (err) {
+        resBox.className = "text-xs p-3 rounded-xl bg-red-50 border border-red-200 text-red-800";
+        resBox.innerHTML = `<strong>Bağlantı Hatası:</strong> ${err.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i><span>Test Mailini Gönder</span>`;
+        lucide.createIcons();
+      }
+    }
+
+    // Toast Bildirimi
+    function showToast(msg, type = 'info') {
+      const toast = document.getElementById('toast');
+      const content = document.getElementById('toastContent');
+
+      let bg = 'bg-slate-800';
+      let icon = 'info';
+      if (type === 'success') { bg = 'bg-emerald-600'; icon = 'check-circle-2'; }
+      if (type === 'error') { bg = 'bg-red-600'; icon = 'alert-triangle'; }
+
+      content.className = `px-4 py-3 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2 text-white ${bg}`;
+      content.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4"></i><span>${msg}</span>`;
+
+      toast.classList.remove('hidden', 'translate-y-2');
+      lucide.createIcons();
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-2');
+        setTimeout(() => toast.classList.add('hidden'), 300);
+      }, 4500);
+    }
+  </script>
+</body>
+</html>
