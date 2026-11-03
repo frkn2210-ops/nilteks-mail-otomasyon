@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nilteks B2B E-Posta & Dijital Katalog Paneli</title>
   
+  <script>
+    // Yetkisiz doğrudan erişimi anında engelle ve giriş ekranına yönlendir
+    (function() {
+      const match = document.cookie.match(/(?:^|;\s*)nilteks_auth=([^;]+)/);
+      const cookieToken = match ? decodeURIComponent(match[1]) : null;
+      const token = localStorage.getItem('nilteks_auth_token') || cookieToken;
+      if (!token) {
+        window.location.replace('/');
+      }
+    })();
+  </script>
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons -->

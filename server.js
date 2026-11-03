@@ -46,12 +46,18 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // URL Normalizer (Vercel Serverless Function & Local uyumu)
 app.use((req, res, next) => {
-  // Root, index.html veya login.html istekleri API'ye dönüştürülmemeli
+  // Eğer originalUrl /api ile başlıyorsa ve req.url bozulduysa düzelt
+  if (req.originalUrl && req.originalUrl.startsWith('/api')) {
+    req.url = req.originalUrl;
+  }
+  // Root, statik html sayfaları ve katalog istekleri API'ye dönüştürülmemeli
   if (
     req.url === '/' ||
     req.url === '' ||
     req.url.startsWith('/index.html') ||
     req.url.startsWith('/login.html') ||
+    req.url.startsWith('/panel.html') ||
+    req.url.startsWith('/panel') ||
     req.url.startsWith('/catalogues')
   ) {
     return next();
@@ -60,6 +66,9 @@ app.use((req, res, next) => {
     req.url = '/api/status';
   } else if (!req.url.startsWith('/api')) {
     req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+  }
+  if (req.url.startsWith('/api/api/')) {
+    req.url = req.url.replace('/api/api/', '/api/');
   }
   next();
 });
@@ -102,9 +111,19 @@ function generateAuthToken() {
 app.get(['/', '/index.html'], (req, res) => {
   const token = getAuthTokenFromReq(req);
   if (verifyAuthToken(token)) {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'panel.html'));
   } else {
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
+  }
+});
+
+// Panel sayfası (Yetki kontrolü ile sunulur)
+app.get(['/panel', '/panel.html'], (req, res) => {
+  const token = getAuthTokenFromReq(req);
+  if (verifyAuthToken(token)) {
+    res.sendFile(path.join(__dirname, 'public', 'panel.html'));
+  } else {
+    res.redirect('/');
   }
 });
 

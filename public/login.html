@@ -154,7 +154,7 @@
           localStorage.setItem('nilteks_auth_token', data.token);
           // 30 günlük çerez olarak da yaz
           document.cookie = `nilteks_auth=${data.token}; path=/; max-age=2592000; SameSite=Lax`;
-          window.location.href = '/';
+          window.location.href = '/panel.html';
         } else {
           errorMsg.textContent = data.error || 'Kullanıcı adı veya şifre hatalı.';
           errorAlert.classList.remove('hidden');
@@ -179,7 +179,7 @@
           });
           const data = await res.json();
           if (data.authenticated) {
-            window.location.href = '/';
+            window.location.href = '/panel.html';
           }
         } catch {}
       }
