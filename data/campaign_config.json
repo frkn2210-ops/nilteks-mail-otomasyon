@@ -1,0 +1,58 @@
+{
+  "subject": "Discover Nil Home | Your Home Textile Manufacturing Partner in Türkiye",
+  "introText": "Dear Sir/Madam,\n\nWe would love to introduce you to Nilteks, a textile manufacturer based in Denizli, Türkiye, with over 30 years of experience.\n\nOur story started with kitchen towels, and over the years, we have expanded our expertise to a wide variety of home textiles. Today, we combine our manufacturing experience with modern designs and evolving market trends to create products that meet the needs of customers worldwide.\n\nIn addition to our Nil Home collections, we offer private label production, helping our partners bring their own designs and brands to life. We take pride in offering competitive prices without compromising on quality, providing our partners with excellent value and reliable manufacturing.\n\nPlease find our latest product catalogues below. You can click on any booklet cover to view the full PDF catalogue directly in your web browser:",
+  "closingText": "We would be happy to learn more about your needs and explore what we can create together.\n\nLooking forward to hearing from you!\n\nBest Regards,\nFurkan Aydın\nNilteks Tekstil San. ve Tic. Ltd. Şti.\nDenizli / Türkiye • www.niltex.com.tr\nEmail: furkan@nilteks.com.tr",
+  "publicBaseUrl": "http://localhost:4000",
+  "catalogues": [
+    {
+      "id": "cat-general",
+      "title": "Kitchen Towels Collection",
+      "subtitle": "Kitchen & Tea Towel Collections",
+      "filename": "Nilteks_General_Catalogue.pdf",
+      "coverImage": "Nilteks_General_Catalogue_cover.jpg",
+      "customUrl": "",
+      "enabled": true,
+      "order": 1
+    },
+    {
+      "id": "cat-bedding",
+      "title": "Nil Home Bedding Collection",
+      "subtitle": "Bed Linens, Duvet Sets & Pillows",
+      "filename": "NilHome_Bedding_Catalog.pdf",
+      "coverImage": "NilHome_Bedding_Catalog_cover.jpg",
+      "customUrl": "",
+      "enabled": true,
+      "order": 2
+    },
+    {
+      "id": "cat-towel",
+      "title": "Towel & Bathrobe Collection",
+      "subtitle": "Premium Cotton Towels & Bathrobes",
+      "filename": "Towel_and_Bathrobe_Collection.pdf",
+      "coverImage": "Towel_and_Bathrobe_Collection_cover.jpg",
+      "customUrl": "",
+      "enabled": true,
+      "order": 3
+    },
+    {
+      "id": "cat-bathmat",
+      "title": "Bath Mat Collection",
+      "subtitle": "Non-Slip & Luxury Bath Mats",
+      "filename": "Bath_Mat_Catalog.pdf",
+      "coverImage": "Bath_Mat_Catalog_cover.jpg",
+      "customUrl": "",
+      "enabled": true,
+      "order": 4
+    },
+    {
+      "id": "cat-christmas",
+      "title": "Christmas & Kitchen Collection",
+      "subtitle": "Seasonal Designs & Kitchen Towels",
+      "filename": "Christmas_Collection.pdf",
+      "coverImage": "Christmas_Collection_cover.jpg",
+      "customUrl": "",
+      "enabled": true,
+      "order": 5
+    }
+  ]
+}

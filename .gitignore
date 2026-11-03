@@ -1,0 +1,17 @@
+# Node dependencies
+node_modules/
+npm-debug.log
+
+# Environment variables (Güvenlik: Şifreleri GitHub'a yükleme)
+.env
+.env.local
+
+# Database & logs
+data/drip_campaigns.sqlite
+data/drip_campaigns.sqlite-journal
+data/drafts/
+*.log
+
+# OS metadata
+.DS_Store
+Thumbs.db
