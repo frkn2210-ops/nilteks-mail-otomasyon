@@ -163,8 +163,8 @@ app.post('/api/auth/logout', (req, res) => {
 // E-POSTA VE PDF AÇILMA / İNCELENME TAKİBİ (HERKESE AÇIK)
 // ========================================================
 
-// 1. E-Posta Okundu Takip Pikseli (1x1 Şeffaf GIF)
-app.get('/api/track/open/:logId', async (req, res) => {
+// 1. E-Posta Okundu Takip Pikseli (1x1 Şeffaf GIF - Herkese Açık)
+app.get(['/api/track/open/:logId', '/track/open/:logId'], async (req, res) => {
   try {
     const logId = parseInt(req.params.logId, 10);
     if (!isNaN(logId) && logId > 0) {
@@ -185,8 +185,8 @@ app.get('/api/track/open/:logId', async (req, res) => {
   res.send(pixel);
 });
 
-// 2. Kitapçık / PDF Tıklama Yönlendirmesi
-app.get('/api/track/click/:logId/:catId', async (req, res) => {
+// 2. Kitapçık / PDF Tıklama Yönlendirmesi (Herkese Açık)
+app.get(['/api/track/click/:logId/:catId', '/track/click/:logId/:catId'], async (req, res) => {
   const logId = parseInt(req.params.logId, 10);
   const catId = req.params.catId;
   const target = req.query.to || `/catalogues/view/${encodeURIComponent(catId)}`;
@@ -208,18 +208,28 @@ app.get('/api/track/click/:logId/:catId', async (req, res) => {
 // ========================================================
 // KORUNAN API GÜVENLİK DUVARI (GİRİŞ ŞARTI)
 // ========================================================
-app.use('/api', (req, res, next) => {
+app.use((req, res, next) => {
   const publicPrefixes = [
     '/api/auth/',
+    '/auth/',
     '/api/covers/',
+    '/covers/',
     '/api/catalogues/view/',
-    '/api/track/'
+    '/catalogues/view/',
+    '/api/track/',
+    '/track/'
   ];
   const urlPath = req.url || '';
   const original = req.originalUrl || '';
 
   const isPublic = publicPrefixes.some(p => urlPath.startsWith(p) || original.startsWith(p));
   if (isPublic) {
+    return next();
+  }
+
+  // Sadece API veya veri isteklerini filtrele
+  const isProtectedApi = urlPath.startsWith('/api') || ['status', 'campaign', 'mail', 'scrape', 'ai-hunter', 'leads', 'logs'].some(k => urlPath.includes(`/${k}`));
+  if (!isProtectedApi) {
     return next();
   }
 
