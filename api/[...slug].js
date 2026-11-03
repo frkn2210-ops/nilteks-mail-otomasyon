@@ -17,7 +17,15 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  const orig = req.originalUrl || req.headers['x-matched-path'] || req.url || '';
+  let orig = req.headers['x-matched-path'] || req.originalUrl || req.url || '';
+  if (req.query && req.query.slug) {
+    const slugParts = Array.isArray(req.query.slug) ? req.query.slug : [req.query.slug];
+    orig = '/api/' + slugParts.join('/');
+  }
+  if (orig) {
+    req.url = orig;
+    req.originalUrl = orig;
+  }
 
   // 1. Direct Login Handler
   if (orig.includes('/login') && req.method === 'POST') {
