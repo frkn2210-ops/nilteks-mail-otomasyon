@@ -149,7 +149,12 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
         });
-        const data = await res.json();
+        let data;
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error('Giriş servisi yanıt vermedi (HTTP ' + res.status + '). Lütfen tekrar deneyin.');
+        }
         if (data.success && data.token) {
           localStorage.setItem('nilteks_auth_token', data.token);
           // 30 günlük çerez olarak da yaz
@@ -160,7 +165,7 @@
           errorAlert.classList.remove('hidden');
         }
       } catch (err) {
-        errorMsg.textContent = 'Sunucuya bağlanılamadı: ' + err.message;
+        errorMsg.textContent = err.message;
         errorAlert.classList.remove('hidden');
       } finally {
         btn.disabled = false;

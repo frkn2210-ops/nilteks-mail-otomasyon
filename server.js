@@ -46,10 +46,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // URL Normalizer (Vercel Serverless Function & Local uyumu)
 app.use((req, res, next) => {
-  // Eğer originalUrl /api ile başlıyorsa ve req.url bozulduysa düzelt
-  if (req.originalUrl && req.originalUrl.startsWith('/api')) {
-    req.url = req.originalUrl;
-  }
   // Root, statik html sayfaları ve katalog istekleri API'ye dönüştürülmemeli
   if (
     req.url === '/' ||
