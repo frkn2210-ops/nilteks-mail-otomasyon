@@ -7,9 +7,7 @@
     }
   },
   "rewrites": [
-    { "source": "/catalogues/view/:filename", "destination": "/catalogues/pdf/:filename" },
-    { "source": "/api/(.*)", "destination": "/api?path=$1" },
-    { "source": "/track/(.*)", "destination": "/api?path=track/$1" }
+    { "source": "/catalogues/view/:filename", "destination": "/catalogues/pdf/:filename" }
   ],
   "headers": [
     {

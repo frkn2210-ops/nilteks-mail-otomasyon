@@ -1,4 +1,4 @@
 // Vercel Serverless Function Catch-All
-const handler = require('./index');
+const app = require('../server');
 
-module.exports = handler;
+module.exports = app;

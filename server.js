@@ -133,7 +133,7 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 app.use(express.static(path.join(__dirname, 'panel'), { index: false }));
 
 // Kimlik Doğrulama Rotaları (Açık - Herkes erişebilir)
-app.post('/api/auth/login', (req, res) => {
+app.post(['/api/auth/login', '/auth/login'], (req, res) => {
   const { username, password } = req.body || {};
   if (username === AUTH_USER && password === AUTH_PASS) {
     const token = generateAuthToken();
@@ -143,7 +143,7 @@ app.post('/api/auth/login', (req, res) => {
   }
 });
 
-app.get('/api/auth/check', (req, res) => {
+app.get(['/api/auth/check', '/auth/check'], (req, res) => {
   const token = getAuthTokenFromReq(req);
   if (verifyAuthToken(token)) {
     return res.json({ success: true, authenticated: true, user: { username: AUTH_USER } });
@@ -151,7 +151,7 @@ app.get('/api/auth/check', (req, res) => {
   res.json({ success: false, authenticated: false });
 });
 
-app.post('/api/auth/logout', (req, res) => {
+app.post(['/api/auth/logout', '/auth/logout'], (req, res) => {
   res.json({ success: true, message: 'Çıkış yapıldı.' });
 });
 
