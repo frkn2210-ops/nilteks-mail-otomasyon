@@ -66,6 +66,34 @@ function initTables() {
     // İndeksler
     db.run(`CREATE INDEX IF NOT EXISTS idx_leads_email ON leads(email)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status)`);
+
+    // Başlangıç Loglarını Yükle (Eğer boşsa)
+    db.get('SELECT COUNT(*) as count FROM email_logs', (err, row) => {
+      if (!err && row && row.count === 0) {
+        try {
+          const seedPath = path.join(__dirname, 'data', 'initial_seed.json');
+          if (fs.existsSync(seedPath)) {
+            const seed = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
+            if (seed.leads && Array.isArray(seed.leads)) {
+              for (const l of seed.leads) {
+                db.run(
+                  `INSERT OR IGNORE INTO leads (id, email, company_name, source_url, category, status, current_step, step1_sent_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  [l.id, l.email, l.company_name || '', l.source_url || '', l.category || 'general', l.status || 'sent', l.current_step || 0, l.step1_sent_at, l.created_at, l.updated_at]
+                );
+              }
+            }
+            if (seed.logs && Array.isArray(seed.logs)) {
+              for (const log of seed.logs) {
+                db.run(
+                  `INSERT OR IGNORE INTO email_logs (id, lead_id, email, step, subject, attachment_name, status, error_message, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  [log.id, log.lead_id, log.email, log.step || 1, log.subject, log.attachment_name, log.status, log.error_message, log.sent_at]
+                );
+              }
+            }
+          }
+        } catch (e) {}
+      }
+    });
   });
 }
 

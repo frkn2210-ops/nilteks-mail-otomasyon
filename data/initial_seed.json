@@ -1,0 +1,117 @@
+{
+  "leads": [
+    {
+      "id": 8,
+      "email": "furkan@nilteks.org",
+      "company_name": "",
+      "source_url": "Doğrudan Gönderim",
+      "category": "İletişim / Bilgi",
+      "status": "sent",
+      "current_step": 0,
+      "step1_sent_at": "2026-11-03T10:29:01.828Z",
+      "step2_due_at": null,
+      "step2_sent_at": null,
+      "step3_due_at": null,
+      "step3_sent_at": null,
+      "last_error": null,
+      "created_at": "2026-11-03 10:29:01",
+      "updated_at": "2026-11-03T10:29:01.828Z"
+    },
+    {
+      "id": 7,
+      "email": "frkn2210@gmail.com",
+      "company_name": "",
+      "source_url": "Doğrudan Gönderim",
+      "category": "İletişim / Bilgi",
+      "status": "sent",
+      "current_step": 0,
+      "step1_sent_at": "2026-11-03T10:27:04.545Z",
+      "step2_due_at": null,
+      "step2_sent_at": null,
+      "step3_due_at": null,
+      "step3_sent_at": null,
+      "last_error": null,
+      "created_at": "2026-11-03 10:27:04",
+      "updated_at": "2026-11-03T10:27:04.545Z"
+    },
+    {
+      "id": 6,
+      "email": "ekuzu489@gmail.com",
+      "company_name": "Test Müşteri",
+      "source_url": "Doğrudan Manuel Giriş",
+      "category": "İletişim / Genel Bilgi (Info)",
+      "status": "completed",
+      "current_step": 3,
+      "step1_sent_at": "2026-11-03T08:47:14.166Z",
+      "step2_due_at": null,
+      "step2_sent_at": "2026-11-03T08:47:16.882Z",
+      "step3_due_at": null,
+      "step3_sent_at": "2026-11-03T08:47:19.599Z",
+      "last_error": null,
+      "created_at": "2026-11-03 08:47:13",
+      "updated_at": "2026-11-03T08:47:19.599Z"
+    }
+  ],
+  "logs": [
+    {
+      "id": 12,
+      "lead_id": 8,
+      "email": "furkan@nilteks.org",
+      "step": 1,
+      "subject": "Discover Nil Home | Your Home Textile Manufacturing Partner in Türkiye",
+      "attachment_name": "Katalog Kitapçık Bağlantıları",
+      "status": "success",
+      "error_message": null,
+      "sent_at": "2026-11-03T10:29:01.830Z",
+      "company_name": ""
+    },
+    {
+      "id": 11,
+      "lead_id": 7,
+      "email": "frkn2210@gmail.com",
+      "step": 1,
+      "subject": "Discover Nil Home | Your Home Textile Manufacturing Partner in Türkiye",
+      "attachment_name": "Katalog Kitapçık Bağlantıları",
+      "status": "success",
+      "error_message": null,
+      "sent_at": "2026-11-03T10:27:04.548Z",
+      "company_name": ""
+    },
+    {
+      "id": 10,
+      "lead_id": 6,
+      "email": "ekuzu489@gmail.com",
+      "step": 3,
+      "subject": "Nilteks | Product Catalogues (Part 3/3)",
+      "attachment_name": "NilHome_Bedding_Catalog.pdf",
+      "status": "success",
+      "error_message": null,
+      "sent_at": "2026-11-03T08:47:19.600Z",
+      "company_name": "Test Müşteri"
+    },
+    {
+      "id": 9,
+      "lead_id": 6,
+      "email": "ekuzu489@gmail.com",
+      "step": 2,
+      "subject": "Nilteks | Product Catalogues (Part 2/3)",
+      "attachment_name": "Bath_Mat_Catalog.pdf, towel and bathrobe collection_compressed.pdf",
+      "status": "success",
+      "error_message": null,
+      "sent_at": "2026-11-03T08:47:16.884Z",
+      "company_name": "Test Müşteri"
+    },
+    {
+      "id": 8,
+      "lead_id": 6,
+      "email": "ekuzu489@gmail.com",
+      "step": 1,
+      "subject": "Discover Nil Home | Your Home Textile Manufacturing Partner",
+      "attachment_name": "Christmas Collection compressed.pdf",
+      "status": "success",
+      "error_message": null,
+      "sent_at": "2026-11-03T08:47:14.167Z",
+      "company_name": "Test Müşteri"
+    }
+  ]
+}
