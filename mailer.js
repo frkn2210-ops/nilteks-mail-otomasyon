@@ -25,30 +25,28 @@ const DEFAULT_CAMPAIGN_CONFIG = {
   subject: "Discover Nil Home | Your Home Textile Manufacturing Partner in Türkiye",
   introText: `Dear Sir/Madam,
 
-We would love to introduce you to Nilteks, a textile manufacturer based in Denizli, Türkiye, with over 30 years of manufacturing experience (since 1986).
+We would love to introduce you to Nilteks, a textile manufacturer based in Denizli, Türkiye, with over 30 years of experience.
 
-Our story started with kitchen towels and napkins, and over the years, we have expanded our expertise to a wide range of premium home textiles, including luxury cotton towels, bathrobes, bath mats, and bedding collections (pique, muslin, bedspreads, and duvet sets).
+Our story started with kitchen towels, and over the years, we have expanded our expertise to a wide variety of home textiles. Today, we combine our manufacturing experience with modern designs and evolving market trends to create products that meet the needs of customers worldwide.
 
-Today, under our Nil Home brand and through comprehensive Private Label production, we combine our manufacturing strength with modern European designs and competitive factory-direct pricing to serve partners worldwide.
+In addition to our Nil Home collections, we offer private label production, helping our partners bring their own designs and brands to life. We take pride in offering competitive prices without compromising on quality, providing our partners with excellent value and reliable manufacturing.
 
-Please find our latest 2026/2027 product collections below. You can click on any booklet cover to view the full PDF catalogue directly in your web browser:`,
-  closingText: `We would be delighted to learn more about your current product needs, discuss private label opportunities, or prepare customized samples and price quotations for your market.
+Please find our latest product catalogues below. You can click on any booklet cover to view the full PDF catalogue directly in your web browser:`,
+  closingText: `We would be happy to learn more about your needs and explore what we can create together.
 
 Looking forward to hearing from you!
 
 Best Regards,
 Furkan Aydın
-Sales & Export Manager
 Nilteks Tekstil San. ve Tic. Ltd. Şti.
-Akçeşme Mah. 2606 Sok. No:6 Merkezefendi, Denizli / Türkiye
-Mobile & WhatsApp: +90 551 410 2451
-Email: furkan@nilteks.com.tr • Web: www.niltex.com.tr`,
+Denizli / Türkiye • www.niltex.com.tr
+Email: furkan@nilteks.com.tr`,
   publicBaseUrl: "https://nilteks-mail-otomasyon.vercel.app",
   catalogues: [
     {
-      id: "cat-kitchen",
+      id: "cat-general",
       title: "Kitchen Towels Collection",
-      subtitle: "Waffle Weave, Muslin & Printed Towels",
+      subtitle: "Kitchen & Tea Towel Collections",
       filename: "Kitchen_Towels_Collection.pdf",
       coverImage: "Kitchen_Towels_Collection_cover.jpg",
       customUrl: "",
@@ -58,7 +56,7 @@ Email: furkan@nilteks.com.tr • Web: www.niltex.com.tr`,
     {
       id: "cat-bedding",
       title: "Nil Home Bedding Collection",
-      subtitle: "Bed Linens, Pique, Muslin & Bedspreads",
+      subtitle: "Bed Linens, Duvet Sets & Pillows",
       filename: "NilHome_Bedding_Catalog.pdf",
       coverImage: "NilHome_Bedding_Catalog_cover.jpg",
       customUrl: "",
@@ -68,7 +66,7 @@ Email: furkan@nilteks.com.tr • Web: www.niltex.com.tr`,
     {
       id: "cat-towel",
       title: "Towel & Bathrobe Collection",
-      subtitle: "100% Turkish Cotton Towels & Bathrobes",
+      subtitle: "Premium Cotton Towels & Bathrobes",
       filename: "Towel_and_Bathrobe_Collection.pdf",
       coverImage: "Towel_and_Bathrobe_Collection_cover.jpg",
       customUrl: "",
@@ -78,7 +76,7 @@ Email: furkan@nilteks.com.tr • Web: www.niltex.com.tr`,
     {
       id: "cat-bathmat",
       title: "Bath Mat Collection",
-      subtitle: "Hand-Knit & 100% Cotton Luxury Mats",
+      subtitle: "Non-Slip & Luxury Bath Mats",
       filename: "Bath_Mat_Catalog.pdf",
       coverImage: "Bath_Mat_Catalog_cover.jpg",
       customUrl: "",
@@ -88,22 +86,12 @@ Email: furkan@nilteks.com.tr • Web: www.niltex.com.tr`,
     {
       id: "cat-christmas",
       title: "Christmas & Kitchen Collection",
-      subtitle: "Seasonal Designs & Holiday Gift Sets",
+      subtitle: "Seasonal Designs & Kitchen Towels",
       filename: "Christmas_Collection.pdf",
       coverImage: "Christmas_Collection_cover.jpg",
       customUrl: "",
       enabled: true,
       order: 5
-    },
-    {
-      id: "cat-fitted-sheet",
-      title: "Fitted Sheet Collection",
-      subtitle: "100% Cotton Fitted Sheets & Sets",
-      filename: "Fitted_Sheet_Collection.pdf",
-      coverImage: "Fitted_Sheet_Collection_cover.jpg",
-      customUrl: "",
-      enabled: true,
-      order: 6
     }
   ]
 };

@@ -43,6 +43,16 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// URL Normalizer (Vercel Serverless Function & Local uyumu)
+app.use((req, res, next) => {
+  if (req.url === '/api' || req.url === '/api/') {
+    req.url = '/api/status';
+  } else if (!req.url.startsWith('/api') && !req.url.startsWith('/catalogues')) {
+    req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+  }
+  next();
+});
+
 // Statik panel ve katalog dosyalarını sun
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'panel')));
