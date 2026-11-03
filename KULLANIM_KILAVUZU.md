@@ -67,13 +67,31 @@ Daha önce karşılaşılan `552 Message size exceeds fixed maximum message size
 ├── scraper.js                    # Web sitesi e-posta tarayıcısı
 ├── db.js                         # SQLite veritabanı sürücüsü
 ├── .env                          # E-posta ve sunucu kimlik bilgileri
-├── catalogues/
-│   ├── pdf/                      # Sunulan katalog PDF dosyaları
-│   └── covers/                   # 1. sayfadan üretilen 3D kitapçık kapakları
+├── vercel.json                   # Vercel CDN ve API yapılandırması
+├── api/
+│   └── index.js                  # Vercel Serverless Function giriş noktası
+├── public/                       # Vercel CDN üzerinden 7/24 sunulan dosyalar
+│   ├── index.html                # Çevrimiçi web paneli
+│   └── catalogues/
+│       ├── pdf/                  # Müşterilerin tarayıcıda açtığı PDF'ler
+│       └── covers/               # E-postalardaki 3D kitapçık kapakları
+├── catalogues/                   # Yerel katalog dosyaları
 ├── data/
 │   ├── campaign_config.json      # E-posta metinleri ve katalog ayarları
-│   ├── drip_campaigns.sqlite     # Müşteri ve log veritabanı
-│   └── drafts/                   # Yeni Outlook taslak dosyaları (.eml)
+│   └── drip_campaigns.sqlite     # Müşteri ve log veritabanı
 └── panel/
-    └── index.html                # Modern yönetim paneli arayüzü
+    └── index.html                # Yerel yönetim paneli arayüzü
 ```
+
+---
+
+### 🌐 6. GitHub & Vercel Canlı Yayın (24/7 Çevrimiçi Erişim)
+
+- **GitHub Deposu:** [https://github.com/frkn2210-ops/nilteks-mail-otomasyon](https://github.com/frkn2210-ops/nilteks-mail-otomasyon)
+- **Vercel'e Bağlama:**
+  1. [vercel.com/new](https://vercel.com/new) adresini açın.
+  2. `nilteks-mail-otomasyon` projesini seçip **Import** butonuna tıklayın.
+  3. **Deploy** butonuna basın.
+  4. Vercel projenizi birkaç saniyede canlıya alacaktır (`https://nilteks-mail-otomasyon.vercel.app`).
+  5. Paneldeki **"Genel Yayın / Vercel Web Adresi"** kutusuna bu adresi girdiğinizde; dünyanın neresinde olursa olsun müşterileriniz e-postadaki kitapçıklara tıkladığı an PDF kataloglar Vercel'in küresel CDN ağı üzerinden anında açılır!
+
