@@ -193,14 +193,6 @@ async function syncFromRemoteStore() {
         if (!log.email) continue;
         const existing = await get('SELECT * FROM email_logs WHERE id = ? OR (tracking_id IS NOT NULL AND tracking_id = ?)', [log.id || 0, log.tracking_id || '__none__']);
         if (existing) {
-          // Asla mevcut pozitif okunma ve tıklanma kaydını geriye düşürme (Monotonic merge)
-          const mergedOpened = Math.max(existing.opened || 0, log.opened ? 1 : 0);
-          const mergedCount = Math.max(existing.open_count || 0, log.open_count || 0);
-          const mergedPdf = Math.max(existing.pdf_clicked || 0, log.pdf_clicked ? 1 : 0);
-          const mergedOpenedAt = existing.opened_at || log.opened_at || null;
-          const mergedPdfAt = existing.pdf_clicked_at || log.pdf_clicked_at || null;
-          const mergedCat = existing.clicked_catalogue || log.clicked_catalogue || null;
-
           await run(`
             UPDATE email_logs 
             SET opened = ?, 
@@ -211,7 +203,7 @@ async function syncFromRemoteStore() {
                 clicked_catalogue = ?,
                 tracking_id = COALESCE(tracking_id, ?)
             WHERE id = ?
-          `, [mergedOpened, mergedOpenedAt, mergedCount, mergedPdf, mergedPdfAt, mergedCat, log.tracking_id || null, existing.id]);
+          `, [log.opened ? 1 : 0, log.opened_at || null, log.open_count || 0, log.pdf_clicked ? 1 : 0, log.pdf_clicked_at || null, log.clicked_catalogue || null, log.tracking_id || null, existing.id]);
         } else {
           await run(`
             INSERT INTO email_logs (id, lead_id, email, step, subject, attachment_name, status, error_message, sent_at, opened, opened_at, open_count, pdf_clicked, pdf_clicked_at, clicked_catalogue, tracking_id)
