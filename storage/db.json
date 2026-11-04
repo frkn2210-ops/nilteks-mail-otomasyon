@@ -57,16 +57,16 @@
       "company_name": "",
       "source_url": "Doğrudan Gönderim",
       "category": "İletişim / Bilgi",
-      "status": "not_started",
+      "status": "sent",
       "current_step": 0,
-      "step1_sent_at": null,
+      "step1_sent_at": "2026-11-04T11:52:47.243Z",
       "step2_due_at": null,
       "step2_sent_at": null,
       "step3_due_at": null,
       "step3_sent_at": null,
       "last_error": null,
       "created_at": "2026-11-04 11:52:45",
-      "updated_at": "2026-11-04 11:52:45"
+      "updated_at": "2026-11-04T11:52:47.243Z"
     }
   ],
   "logs": [
@@ -167,7 +167,7 @@
       "step": 1,
       "subject": "Discover Nil Home | Your Home Textile Manufacturing Partner in Türkiye",
       "attachment_name": "Katalog Kitapçıkları",
-      "status": "pending",
+      "status": "success",
       "error_message": null,
       "sent_at": "2026-11-04 11:52:45",
       "opened": 0,
@@ -179,5 +179,5 @@
       "tracking_id": "trk_mw224woz_53fa4n"
     }
   ],
-  "updated_at": "2026-11-04T11:52:45.454Z"
+  "updated_at": "2026-11-04T11:52:47.245Z"
 }
