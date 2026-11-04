@@ -50,6 +50,23 @@
       "last_error": null,
       "created_at": "2026-11-03 10:29:01",
       "updated_at": "2026-11-03T10:29:01.828Z"
+    },
+    {
+      "id": 9,
+      "email": "ismail@ynbtextile.com",
+      "company_name": "",
+      "source_url": "Doğrudan Gönderim",
+      "category": "İletişim / Bilgi",
+      "status": "not_started",
+      "current_step": 0,
+      "step1_sent_at": null,
+      "step2_due_at": null,
+      "step2_sent_at": null,
+      "step3_due_at": null,
+      "step3_sent_at": null,
+      "last_error": null,
+      "created_at": "2026-11-04 11:52:45",
+      "updated_at": "2026-11-04 11:52:45"
     }
   ],
   "logs": [
@@ -142,7 +159,25 @@
       "pdf_clicked_at": null,
       "clicked_catalogue": null,
       "tracking_id": "trk_seed_12"
+    },
+    {
+      "id": 13,
+      "lead_id": 9,
+      "email": "ismail@ynbtextile.com",
+      "step": 1,
+      "subject": "Discover Nil Home | Your Home Textile Manufacturing Partner in Türkiye",
+      "attachment_name": "Katalog Kitapçıkları",
+      "status": "pending",
+      "error_message": null,
+      "sent_at": "2026-11-04 11:52:45",
+      "opened": 0,
+      "opened_at": null,
+      "open_count": 0,
+      "pdf_clicked": 0,
+      "pdf_clicked_at": null,
+      "clicked_catalogue": null,
+      "tracking_id": "trk_mw224woz_53fa4n"
     }
   ],
-  "updated_at": "2026-11-04T06:57:39.210Z"
+  "updated_at": "2026-11-04T11:52:45.454Z"
 }
