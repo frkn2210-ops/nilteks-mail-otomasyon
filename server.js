@@ -282,7 +282,6 @@ app.use((req, res, next) => {
 // 1. Genel Sistem Durumu ve İstatistikler
 app.get('/api/status', async (req, res) => {
   try {
-    await db.syncFromRemoteStore();
     const stats = await db.getStats();
     const config = mailer.getCampaignConfig();
     const connectionCheck = await mailer.verifyConnection();
@@ -634,10 +633,9 @@ app.post('/api/ai-hunter', async (req, res) => {
   }
 });
 
-// 14. Müşteri Listesi (Uzak Depo Senkronizasyonlu)
+// 14. Müşteri Listesi
 app.get('/api/leads', async (req, res) => {
   try {
-    await db.syncFromRemoteStore();
     const leads = await db.getAllLeads();
     res.json({ success: true, leads });
   } catch (err) {
@@ -671,10 +669,9 @@ app.delete('/api/leads/:id', async (req, res) => {
   }
 });
 
-// 17. Gönderim Logları (Uzak Depo Senkronizasyonlu)
+// 17. Gönderim Logları
 app.get('/api/logs', async (req, res) => {
   try {
-    await db.syncFromRemoteStore();
     const logs = await db.getEmailLogs(200);
     res.json({ success: true, logs });
   } catch (err) {
