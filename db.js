@@ -103,12 +103,40 @@ function initTables() {
     db.run(`CREATE INDEX IF NOT EXISTS idx_email_logs_pdf ON email_logs(pdf_clicked)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_email_logs_tracking ON email_logs(tracking_id)`);
 
-    // Uzak kalıcı depodan (GitHub data-store) en güncel verileri çek ve senkronize et
-    syncFromRemoteStore()
-      .catch(e => console.warn('Uzak veri senkronizasyon uyarısı:', e.message))
-      .finally(() => {
-        if (typeof initResolve === 'function') initResolve();
-      });
+    // Başlangıç Seed Verilerini Yükle (Eğer veritabanı tamamen boşsa anında doldur)
+    db.get('SELECT COUNT(*) as count FROM email_logs', (err, row) => {
+      if (!err && (!row || row.count === 0)) {
+        try {
+          const seedPath = path.join(__dirname, 'data', 'initial_seed.json');
+          if (fs.existsSync(seedPath)) {
+            const seed = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
+            if (seed.leads && Array.isArray(seed.leads)) {
+              for (const l of seed.leads) {
+                db.run(
+                  `INSERT OR IGNORE INTO leads (id, email, company_name, source_url, category, status, current_step, step1_sent_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  [l.id, l.email, l.company_name || '', l.source_url || '', l.category || 'general', l.status || 'sent', l.current_step || 0, l.step1_sent_at, l.created_at, l.updated_at]
+                );
+              }
+            }
+            if (seed.logs && Array.isArray(seed.logs)) {
+              for (const log of seed.logs) {
+                db.run(
+                  `INSERT OR IGNORE INTO email_logs (id, lead_id, email, step, subject, attachment_name, status, error_message, sent_at, opened, open_count, pdf_clicked, tracking_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?)`,
+                  [log.id, log.lead_id, log.email, log.step || 1, log.subject, log.attachment_name, log.status, log.error_message, log.sent_at, log.tracking_id || 'trk_seed_' + log.id]
+                );
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
+      // Uzak kalıcı depodan (GitHub data-store) en güncel verileri çek ve senkronize et
+      syncFromRemoteStore()
+        .catch(e => console.warn('Uzak veri senkronizasyon uyarısı:', e.message))
+        .finally(() => {
+          if (typeof initResolve === 'function') initResolve();
+        });
+    });
   });
 }
 
@@ -232,6 +260,10 @@ async function addOrGetLead(leadData) {
 
 async function getAllLeads() {
   await ensureReady();
+  const c = await get('SELECT COUNT(*) as count FROM leads');
+  if (!c || c.count === 0) {
+    await syncFromRemoteStore();
+  }
   return await all(`
     SELECT * FROM leads 
     ORDER BY 
@@ -353,6 +385,10 @@ async function recordPdfClick(identifier, catalogueTitle) {
 
 async function getEmailLogs(limit = 200) {
   await ensureReady();
+  const c = await get('SELECT COUNT(*) as count FROM email_logs');
+  if (!c || c.count === 0) {
+    await syncFromRemoteStore();
+  }
   try {
     return await all(`
       SELECT 
