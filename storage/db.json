@@ -170,14 +170,14 @@
       "status": "success",
       "error_message": null,
       "sent_at": "2026-11-04 11:52:45",
-      "opened": 0,
-      "opened_at": null,
+      "opened": 1,
+      "opened_at": "2026-11-04T11:59:53.880Z",
       "open_count": 0,
-      "pdf_clicked": 0,
-      "pdf_clicked_at": null,
-      "clicked_catalogue": null,
+      "pdf_clicked": 1,
+      "pdf_clicked_at": "2026-11-04T11:59:53.880Z",
+      "clicked_catalogue": "Kitchen Towels Collection",
       "tracking_id": "trk_mw224woz_53fa4n"
     }
   ],
-  "updated_at": "2026-11-04T11:52:47.245Z"
+  "updated_at": "2026-11-04T11:59:53.884Z"
 }
