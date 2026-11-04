@@ -17,9 +17,19 @@ if (isVercel && !fs.existsSync(dbPath)) {
   }
 }
 
+let initResolve;
+const initPromise = new Promise((resolve) => {
+  initResolve = resolve;
+});
+
+async function ensureReady() {
+  await initPromise;
+}
+
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('❌ SQLite veritabanı bağlantı hatası:', err.message);
+    initResolve();
   } else {
     console.log('📦 SQLite veritabanına bağlanıldı:', dbPath);
     initTables();
@@ -94,7 +104,11 @@ function initTables() {
     db.run(`CREATE INDEX IF NOT EXISTS idx_email_logs_tracking ON email_logs(tracking_id)`);
 
     // Uzak kalıcı depodan (GitHub data-store) en güncel verileri çek ve senkronize et
-    syncFromRemoteStore().catch(e => console.warn('Uzak veri senkronizasyon uyarısı:', e.message));
+    syncFromRemoteStore()
+      .catch(e => console.warn('Uzak veri senkronizasyon uyarısı:', e.message))
+      .finally(() => {
+        if (typeof initResolve === 'function') initResolve();
+      });
   });
 }
 
@@ -200,6 +214,7 @@ async function persistToRemoteStore() {
 
 // Veri Yönetim Fonksiyonları
 async function addOrGetLead(leadData) {
+  await ensureReady();
   const { email, company_name, source_url, category } = leadData;
   const existing = await get('SELECT * FROM leads WHERE email = ?', [email.toLowerCase().trim()]);
   if (existing) {
@@ -216,6 +231,7 @@ async function addOrGetLead(leadData) {
 }
 
 async function getAllLeads() {
+  await ensureReady();
   return await all(`
     SELECT * FROM leads 
     ORDER BY 
@@ -230,10 +246,12 @@ async function getAllLeads() {
 }
 
 async function getLeadById(id) {
+  await ensureReady();
   return await get('SELECT * FROM leads WHERE id = ?', [id]);
 }
 
 async function updateLead(id, updates) {
+  await ensureReady();
   const fields = Object.keys(updates).map(k => `${k} = ?`).join(', ');
   const values = Object.values(updates);
   values.push(new Date().toISOString());
@@ -262,6 +280,7 @@ async function deleteLead(id) {
 }
 
 async function logEmail(lead_id, email, step, subject, attachment_name, status, error_message = null, tracking_id = null) {
+  await ensureReady();
   const res = await run(
     `INSERT INTO email_logs (lead_id, email, step, subject, attachment_name, status, error_message, sent_at, opened, open_count, pdf_clicked, tracking_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?)`,
@@ -273,6 +292,7 @@ async function logEmail(lead_id, email, step, subject, attachment_name, status, 
 
 // 1. E-Posta Okundu Olarak İşle (Akıllı ID ve Tracking UUID Desteği)
 async function recordEmailOpen(identifier) {
+  await ensureReady();
   if (!identifier) return;
   const now = new Date().toISOString();
   const isNum = Number.isInteger(Number(identifier)) && Number(identifier) > 0;
@@ -300,6 +320,7 @@ async function recordEmailOpen(identifier) {
 
 // 2. Katalog PDF'i Tıklandı ve İncelendi Olarak İşle
 async function recordPdfClick(identifier, catalogueTitle) {
+  await ensureReady();
   if (!identifier) return;
   const now = new Date().toISOString();
   const isNum = Number.isInteger(Number(identifier)) && Number(identifier) > 0;
@@ -331,6 +352,7 @@ async function recordPdfClick(identifier, catalogueTitle) {
 }
 
 async function getEmailLogs(limit = 200) {
+  await ensureReady();
   try {
     return await all(`
       SELECT 
@@ -394,6 +416,7 @@ async function syncLogsAndLeads(clientLeads = [], clientLogs = []) {
 }
 
 async function getStats() {
+  await ensureReady();
   const total = await get('SELECT COUNT(*) as count FROM leads');
   const notStarted = await get("SELECT COUNT(*) as count FROM leads WHERE status = 'not_started'");
   const sent = await get("SELECT COUNT(*) as count FROM leads WHERE status IN ('sent', 'completed')");
