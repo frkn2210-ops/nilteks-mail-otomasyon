@@ -138,11 +138,11 @@
       "opened": 1,
       "opened_at": "2026-11-04T06:47:18.726Z",
       "open_count": 1,
-      "pdf_clicked": 0,
-      "pdf_clicked_at": null,
-      "clicked_catalogue": null,
+      "pdf_clicked": 1,
+      "pdf_clicked_at": "2026-11-04T06:57:39.206Z",
+      "clicked_catalogue": "Kitchen Towels Collection",
       "tracking_id": "trk_seed_12"
     }
   ],
-  "updated_at": "2026-11-04T06:47:18.730Z"
+  "updated_at": "2026-11-04T06:57:39.210Z"
 }
