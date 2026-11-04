@@ -1,6 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
+const remoteStore = require('./remote_store');
 
 const isVercel = !!process.env.VERCEL;
 const dbDir = isVercel ? '/tmp/data' : path.join(__dirname, 'data');
@@ -15,6 +16,7 @@ if (isVercel && !fs.existsSync(dbPath)) {
     try { fs.copyFileSync(sourceDb, dbPath); } catch {}
   }
 }
+
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('❌ SQLite veritabanı bağlantı hatası:', err.message);
@@ -47,7 +49,7 @@ function initTables() {
       )
     `);
 
-    // 2. Email Gönderim Logları Tablosu (Açılma ve PDF Tıklama Takibi Dahil)
+    // 2. Email Gönderim Logları Tablosu (Açılma, PDF İnceleme ve Takip Kimliği Dahil)
     db.run(`
       CREATE TABLE IF NOT EXISTS email_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,18 +67,20 @@ function initTables() {
         pdf_clicked INTEGER DEFAULT 0,
         pdf_clicked_at DATETIME,
         clicked_catalogue TEXT,
+        tracking_id TEXT,
         FOREIGN KEY (lead_id) REFERENCES leads (id) ON DELETE CASCADE
       )
     `);
 
-    // Mevcut tablolara yeni takip sütunlarını güvenle ekle (Migration)
+    // Tablo şema güncellemeleri (Migration)
     const migrations = [
       'ALTER TABLE email_logs ADD COLUMN opened INTEGER DEFAULT 0',
       'ALTER TABLE email_logs ADD COLUMN opened_at DATETIME',
       'ALTER TABLE email_logs ADD COLUMN open_count INTEGER DEFAULT 0',
       'ALTER TABLE email_logs ADD COLUMN pdf_clicked INTEGER DEFAULT 0',
       'ALTER TABLE email_logs ADD COLUMN pdf_clicked_at DATETIME',
-      'ALTER TABLE email_logs ADD COLUMN clicked_catalogue TEXT'
+      'ALTER TABLE email_logs ADD COLUMN clicked_catalogue TEXT',
+      'ALTER TABLE email_logs ADD COLUMN tracking_id TEXT'
     ];
     for (const sql of migrations) {
       db.run(sql, () => {});
@@ -87,34 +91,10 @@ function initTables() {
     db.run(`CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_email_logs_opened ON email_logs(opened)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_email_logs_pdf ON email_logs(pdf_clicked)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_email_logs_tracking ON email_logs(tracking_id)`);
 
-    // Başlangıç Loglarını Yükle (Eğer boşsa)
-    db.get('SELECT COUNT(*) as count FROM email_logs', (err, row) => {
-      if (!err && row && row.count === 0) {
-        try {
-          const seedPath = path.join(__dirname, 'data', 'initial_seed.json');
-          if (fs.existsSync(seedPath)) {
-            const seed = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
-            if (seed.leads && Array.isArray(seed.leads)) {
-              for (const l of seed.leads) {
-                db.run(
-                  `INSERT OR IGNORE INTO leads (id, email, company_name, source_url, category, status, current_step, step1_sent_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                  [l.id, l.email, l.company_name || '', l.source_url || '', l.category || 'general', l.status || 'sent', l.current_step || 0, l.step1_sent_at, l.created_at, l.updated_at]
-                );
-              }
-            }
-            if (seed.logs && Array.isArray(seed.logs)) {
-              for (const log of seed.logs) {
-                db.run(
-                  `INSERT OR IGNORE INTO email_logs (id, lead_id, email, step, subject, attachment_name, status, error_message, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                  [log.id, log.lead_id, log.email, log.step || 1, log.subject, log.attachment_name, log.status, log.error_message, log.sent_at]
-                );
-              }
-            }
-          }
-        } catch (e) {}
-      }
-    });
+    // Uzak kalıcı depodan (GitHub data-store) en güncel verileri çek ve senkronize et
+    syncFromRemoteStore().catch(e => console.warn('Uzak veri senkronizasyon uyarısı:', e.message));
   });
 }
 
@@ -146,6 +126,56 @@ function all(sql, params = []) {
   });
 }
 
+// ========================================================
+// UZAK KALICI VERİ DEPOSU ENTEGRASYONU (CROSS-DEVICE SYNC)
+// ========================================================
+
+async function syncFromRemoteStore() {
+  try {
+    const data = await remoteStore.fetchRemoteData();
+    if (!data) return;
+
+    if (Array.isArray(data.leads) && data.leads.length > 0) {
+      for (const l of data.leads) {
+        if (!l.email) continue;
+        await run(
+          `INSERT OR REPLACE INTO leads (id, email, company_name, source_url, category, status, current_step, step1_sent_at, step2_due_at, step2_sent_at, step3_due_at, step3_sent_at, last_error, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [l.id, l.email, l.company_name || '', l.source_url || '', l.category || 'general', l.status || 'sent', l.current_step || 0, l.step1_sent_at || null, l.step2_due_at || null, l.step2_sent_at || null, l.step3_due_at || null, l.step3_sent_at || null, l.last_error || null, l.created_at || new Date().toISOString(), l.updated_at || new Date().toISOString()]
+        );
+      }
+    }
+
+    if (Array.isArray(data.logs) && data.logs.length > 0) {
+      for (const log of data.logs) {
+        if (!log.email) continue;
+        await run(
+          `INSERT OR REPLACE INTO email_logs (id, lead_id, email, step, subject, attachment_name, status, error_message, sent_at, opened, opened_at, open_count, pdf_clicked, pdf_clicked_at, clicked_catalogue, tracking_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [log.id, log.lead_id || null, log.email, log.step || 1, log.subject, log.attachment_name, log.status, log.error_message, log.sent_at || new Date().toISOString(), log.opened ? 1 : 0, log.opened_at || null, log.open_count || 0, log.pdf_clicked ? 1 : 0, log.pdf_clicked_at || null, log.clicked_catalogue || null, log.tracking_id || null]
+        );
+      }
+    }
+    console.log('🔄 Uzak depodan yerel SQLite veritabanı başarıyla güncellendi.');
+  } catch (err) {
+    console.warn('⚠️ syncFromRemoteStore error:', err.message);
+  }
+}
+
+async function persistToRemoteStore() {
+  try {
+    const leads = await all(`SELECT * FROM leads ORDER BY id ASC`);
+    const logs = await all(`SELECT * FROM email_logs ORDER BY id ASC`);
+    remoteStore.queueSave({
+      leads,
+      logs,
+      updated_at: new Date().toISOString()
+    }, 1500);
+  } catch (err) {
+    console.warn('⚠️ persistToRemoteStore error:', err.message);
+  }
+}
+
 // Veri Yönetim Fonksiyonları
 async function addOrGetLead(leadData) {
   const { email, company_name, source_url, category } = leadData;
@@ -158,7 +188,9 @@ async function addOrGetLead(leadData) {
      VALUES (?, ?, ?, ?, 'not_started', 0)`,
     [email.toLowerCase().trim(), company_name || '', source_url || '', category || 'general']
   );
-  return await get('SELECT * FROM leads WHERE id = ?', [result.lastID]);
+  const newLead = await get('SELECT * FROM leads WHERE id = ?', [result.lastID]);
+  persistToRemoteStore().catch(() => {});
+  return newLead;
 }
 
 async function getAllLeads() {
@@ -185,7 +217,9 @@ async function updateLead(id, updates) {
   values.push(new Date().toISOString());
   values.push(id);
   await run(`UPDATE leads SET ${fields}, updated_at = ? WHERE id = ?`, values);
-  return await getLeadById(id);
+  const updated = await getLeadById(id);
+  persistToRemoteStore().catch(() => {});
+  return updated;
 }
 
 async function markLeadSent(id, subject) {
@@ -194,44 +228,84 @@ async function markLeadSent(id, subject) {
     `UPDATE leads SET status = 'sent', step1_sent_at = ?, last_error = NULL, updated_at = ? WHERE id = ?`,
     [now, now, id]
   );
+  persistToRemoteStore().catch(() => {});
   return await getLeadById(id);
 }
 
 async function deleteLead(id) {
   await run('DELETE FROM email_logs WHERE lead_id = ?', [id]);
-  return await run('DELETE FROM leads WHERE id = ?', [id]);
+  const res = await run('DELETE FROM leads WHERE id = ?', [id]);
+  persistToRemoteStore().catch(() => {});
+  return res;
 }
 
-async function logEmail(lead_id, email, step, subject, attachment_name, status, error_message = null) {
-  return await run(
-    `INSERT INTO email_logs (lead_id, email, step, subject, attachment_name, status, error_message, sent_at, opened, open_count, pdf_clicked)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)`,
-    [lead_id, email, step || 1, subject, attachment_name || 'Katalog Bağlantıları', status, error_message, new Date().toISOString()]
+async function logEmail(lead_id, email, step, subject, attachment_name, status, error_message = null, tracking_id = null) {
+  const res = await run(
+    `INSERT INTO email_logs (lead_id, email, step, subject, attachment_name, status, error_message, sent_at, opened, open_count, pdf_clicked, tracking_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?)`,
+    [lead_id, email, step || 1, subject, attachment_name || 'Katalog Bağlantıları', status, error_message, new Date().toISOString(), tracking_id]
   );
+  persistToRemoteStore().catch(() => {});
+  return res;
 }
 
-async function recordEmailOpen(logId) {
+// 1. E-Posta Okundu Olarak İşle (Akıllı ID ve Tracking UUID Desteği)
+async function recordEmailOpen(identifier) {
+  if (!identifier) return;
   const now = new Date().toISOString();
-  return await run(`
-    UPDATE email_logs 
-    SET opened = 1, 
-        opened_at = COALESCE(opened_at, ?), 
-        open_count = COALESCE(open_count, 0) + 1 
-    WHERE id = ?
-  `, [now, logId]);
+  const isNum = Number.isInteger(Number(identifier)) && Number(identifier) > 0;
+  
+  if (isNum) {
+    await run(`
+      UPDATE email_logs 
+      SET opened = 1, 
+          opened_at = COALESCE(opened_at, ?), 
+          open_count = COALESCE(open_count, 0) + 1 
+      WHERE id = ? OR tracking_id = ?
+    `, [now, identifier, String(identifier)]);
+  } else {
+    await run(`
+      UPDATE email_logs 
+      SET opened = 1, 
+          opened_at = COALESCE(opened_at, ?), 
+          open_count = COALESCE(open_count, 0) + 1 
+      WHERE tracking_id = ?
+    `, [now, String(identifier)]);
+  }
+
+  persistToRemoteStore().catch(() => {});
 }
 
-async function recordPdfClick(logId, catalogueTitle) {
+// 2. Katalog PDF'i Tıklandı ve İncelendi Olarak İşle
+async function recordPdfClick(identifier, catalogueTitle) {
+  if (!identifier) return;
   const now = new Date().toISOString();
-  return await run(`
-    UPDATE email_logs 
-    SET opened = 1, 
-        opened_at = COALESCE(opened_at, ?), 
-        pdf_clicked = 1, 
-        pdf_clicked_at = COALESCE(pdf_clicked_at, ?), 
-        clicked_catalogue = ? 
-    WHERE id = ?
-  `, [now, now, catalogueTitle || 'Katalog Kitapçığı', logId]);
+  const isNum = Number.isInteger(Number(identifier)) && Number(identifier) > 0;
+  const title = catalogueTitle || 'Katalog Kitapçığı';
+
+  if (isNum) {
+    await run(`
+      UPDATE email_logs 
+      SET opened = 1, 
+          opened_at = COALESCE(opened_at, ?), 
+          pdf_clicked = 1, 
+          pdf_clicked_at = COALESCE(pdf_clicked_at, ?), 
+          clicked_catalogue = ? 
+      WHERE id = ? OR tracking_id = ?
+    `, [now, now, title, identifier, String(identifier)]);
+  } else {
+    await run(`
+      UPDATE email_logs 
+      SET opened = 1, 
+          opened_at = COALESCE(opened_at, ?), 
+          pdf_clicked = 1, 
+          pdf_clicked_at = COALESCE(pdf_clicked_at, ?), 
+          clicked_catalogue = ? 
+      WHERE tracking_id = ?
+    `, [now, now, title, String(identifier)]);
+  }
+
+  persistToRemoteStore().catch(() => {});
 }
 
 async function getEmailLogs(limit = 200) {
@@ -253,6 +327,7 @@ async function getEmailLogs(limit = 200) {
         COALESCE(l.pdf_clicked, 0) as pdf_clicked,
         l.pdf_clicked_at,
         l.clicked_catalogue,
+        l.tracking_id,
         COALESCE(leads.company_name, '') as company_name
       FROM email_logs l
       LEFT JOIN leads ON l.lead_id = leads.id
@@ -283,30 +358,17 @@ async function syncLogsAndLeads(clientLeads = [], clientLogs = []) {
   if (Array.isArray(clientLogs)) {
     for (const log of clientLogs) {
       if (!log.email) continue;
-      const existing = await get('SELECT id FROM email_logs WHERE email = ? AND sent_at = ?', [log.email, log.sent_at]);
-      if (existing) {
-        if (log.opened || log.pdf_clicked) {
-          await run(
-            `UPDATE email_logs 
-             SET opened = MAX(opened, ?), 
-                 opened_at = COALESCE(opened_at, ?), 
-                 open_count = MAX(open_count, ?), 
-                 pdf_clicked = MAX(pdf_clicked, ?), 
-                 pdf_clicked_at = COALESCE(pdf_clicked_at, ?), 
-                 clicked_catalogue = COALESCE(clicked_catalogue, ?)
-             WHERE id = ?`,
-            [log.opened ? 1 : 0, log.opened_at, log.open_count || 1, log.pdf_clicked ? 1 : 0, log.pdf_clicked_at, log.clicked_catalogue, existing.id]
-          );
-        }
-      } else {
+      const existing = await get('SELECT id, opened, pdf_clicked FROM email_logs WHERE email = ? AND sent_at = ?', [log.email, log.sent_at]);
+      if (!existing) {
         await run(
-          `INSERT INTO email_logs (lead_id, email, step, subject, attachment_name, status, error_message, sent_at, opened, opened_at, open_count, pdf_clicked, pdf_clicked_at, clicked_catalogue)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [log.lead_id || null, log.email, log.step || 1, log.subject, log.attachment_name, log.status, log.error_message, log.sent_at || new Date().toISOString(), log.opened ? 1 : 0, log.opened_at || null, log.open_count || 0, log.pdf_clicked ? 1 : 0, log.pdf_clicked_at || null, log.clicked_catalogue || null]
+          `INSERT INTO email_logs (lead_id, email, step, subject, attachment_name, status, error_message, sent_at, opened, opened_at, open_count, pdf_clicked, pdf_clicked_at, clicked_catalogue, tracking_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [log.lead_id || null, log.email, log.step || 1, log.subject, log.attachment_name, log.status, log.error_message, log.sent_at || new Date().toISOString(), log.opened ? 1 : 0, log.opened_at || null, log.open_count || 0, log.pdf_clicked ? 1 : 0, log.pdf_clicked_at || null, log.clicked_catalogue || null, log.tracking_id || null]
         );
       }
     }
   }
+  persistToRemoteStore().catch(() => {});
 }
 
 async function getStats() {
@@ -345,5 +407,7 @@ module.exports = {
   syncLogsAndLeads,
   getEmailLogs,
   getRecentLogs,
-  getStats
+  getStats,
+  syncFromRemoteStore,
+  persistToRemoteStore
 };

@@ -148,15 +148,42 @@ app.post(['/api/auth/logout', '/auth/logout', '/api/logout', '/logout'], (req, r
 // E-POSTA VE PDF AÇILMA / İNCELENME TAKİBİ (HERKESE AÇIK)
 // ========================================================
 
+// Güvenli Bot, Tarayıcı ve Otomasyon Filtresi (Yanıltıcı İstatistikleri Engeller)
+function isBotOrScanner(req) {
+  const ua = (req.headers['user-agent'] || '').toLowerCase();
+  const purpose = (req.headers['purpose'] || req.headers['sec-purpose'] || req.headers['x-purpose'] || req.headers['x-moz'] || '').toLowerCase();
+  if (purpose.includes('prefetch') || purpose.includes('preview')) return true;
+
+  const botSignatures = [
+    'bot', 'spider', 'crawler', 'safelinks', 'preview', 'curl', 'wget', 'python',
+    'slurp', 'facebookexternalhit', 'inspection', 'virus', 'scanner', 'barracuda',
+    'proofpoint', 'mimecast', 'fireeye', 'ahrefs', 'semrush', 'googlebot',
+    'bingbot', 'bytespider', 'yandex', 'headlesschrome', 'phantomjs', 'postman'
+  ];
+  return botSignatures.some(sig => ua.includes(sig));
+}
+
+// Gönderici veya Yönetici Tarafından Yapılan İncelemeleri Filtrele
+function isSenderOrAdmin(req) {
+  const token = getAuthTokenFromReq(req);
+  if (verifyAuthToken(token)) return true;
+  const ref = (req.headers['referer'] || '').toLowerCase();
+  if (ref.includes('/panel') || ref.includes('/login') || ref.includes('preview')) return true;
+  return false;
+}
+
 // 1. E-Posta Okundu Takip Pikseli (1x1 Şeffaf GIF - Herkese Açık)
 app.get(['/api/track/open/:logId', '/track/open/:logId'], async (req, res) => {
-  try {
-    const logId = parseInt(req.params.logId, 10);
-    if (!isNaN(logId) && logId > 0) {
-      await db.recordEmailOpen(logId);
+  const identifier = req.params.logId;
+  const isBot = isBotOrScanner(req);
+  const isAdmin = isSenderOrAdmin(req);
+
+  if (!isBot && !isAdmin && identifier) {
+    try {
+      await db.recordEmailOpen(identifier);
+    } catch (err) {
+      console.warn('Track open error:', err.message);
     }
-  } catch (err) {
-    console.warn('Track open error:', err.message);
   }
 
   const pixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
@@ -172,7 +199,7 @@ app.get(['/api/track/open/:logId', '/track/open/:logId'], async (req, res) => {
 
 // 2. Kitapçık / PDF Tıklama Yönlendirmesi (Herkese Açık)
 app.get(['/api/track/click/:logId/:catId', '/track/click/:logId/:catId'], async (req, res) => {
-  const logId = parseInt(req.params.logId, 10);
+  const identifier = req.params.logId;
   const catId = req.params.catId;
 
   let target = req.query.to;
@@ -184,8 +211,15 @@ app.get(['/api/track/click/:logId/:catId', '/track/click/:logId/:catId'], async 
     if (!target) {
       target = `/catalogues/view/${encodeURIComponent(catFilename)}`;
     }
-    if (!isNaN(logId) && logId > 0) {
-      await db.recordPdfClick(logId, catTitle);
+
+    // Sadece gerçek insan ziyaretlerinde (text/html isteyen tarayıcı isteklerinde) tıklanmayı kaydet
+    const acceptHeader = (req.headers['accept'] || '').toLowerCase();
+    const isHumanNavigation = acceptHeader.includes('text/html');
+    const isBot = isBotOrScanner(req);
+    const isAdmin = isSenderOrAdmin(req);
+
+    if (!isBot && !isAdmin && isHumanNavigation && identifier && req.method === 'GET') {
+      await db.recordPdfClick(identifier, catTitle);
     }
   } catch (err) {
     console.warn('Track click error:', err.message);
@@ -248,6 +282,7 @@ app.use((req, res, next) => {
 // 1. Genel Sistem Durumu ve İstatistikler
 app.get('/api/status', async (req, res) => {
   try {
+    await db.syncFromRemoteStore();
     const stats = await db.getStats();
     const config = mailer.getCampaignConfig();
     const connectionCheck = await mailer.verifyConnection();
@@ -442,16 +477,19 @@ app.post('/api/campaign/send', async (req, res) => {
       category: category || 'İletişim / Bilgi'
     });
 
-    // Gönderim öncesi takip kaydı oluştur (Log ID elde etmek için)
+    // Benzersiz takip kimliği oluştur (UUID)
+    const trackingUuid = 'trk_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8);
+
+    // Gönderim öncesi takip kaydı oluştur (Log ID ve tracking_id ile)
     const logRes = await db.run(
-      `INSERT INTO email_logs (lead_id, email, step, subject, attachment_name, status, sent_at, opened, open_count, pdf_clicked)
-       VALUES (?, ?, 1, ?, 'Katalog Kitapçıkları', 'pending', CURRENT_TIMESTAMP, 0, 0, 0)`,
-      [lead.id, lead.email, config.subject || 'Nilteks Digital Catalogue']
+      `INSERT INTO email_logs (lead_id, email, step, subject, attachment_name, status, sent_at, opened, open_count, pdf_clicked, tracking_id)
+       VALUES (?, ?, 1, ?, 'Katalog Kitapçıkları', 'pending', CURRENT_TIMESTAMP, 0, 0, 0, ?)`,
+      [lead.id, lead.email, config.subject || 'Nilteks Digital Catalogue', trackingUuid]
     );
     logId = logRes.lastID;
 
-    // Maili takip kimliği ile gönder (Okundu ve PDF tıklama takipli)
-    const result = await mailer.sendSingleCampaignEmail(lead.email, config, { trackingLogId: logId });
+    // Maili benzersiz takip kimliği ile gönder (Okundu ve PDF tıklama takipli)
+    const result = await mailer.sendSingleCampaignEmail(lead.email, config, { trackingLogId: trackingUuid, logId });
 
     await db.run(
       `UPDATE email_logs SET status = 'success', subject = ? WHERE id = ?`,
@@ -506,14 +544,15 @@ app.post('/api/campaign/open-outlook', async (req, res) => {
       category: 'İletişim / Bilgi'
     });
 
+    const trackingUuid = 'trk_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8);
     const logRes = await db.run(
-      `INSERT INTO email_logs (lead_id, email, step, subject, attachment_name, status, sent_at, opened, open_count, pdf_clicked)
-       VALUES (?, ?, 1, ?, 'Katalog Kitapçıkları', 'success', CURRENT_TIMESTAMP, 0, 0, 0)`,
-      [lead.id, lead.email, config.subject || 'Outlook Taslağı Hazırlandı']
+      `INSERT INTO email_logs (lead_id, email, step, subject, attachment_name, status, sent_at, opened, open_count, pdf_clicked, tracking_id)
+       VALUES (?, ?, 1, ?, 'Katalog Kitapçıkları', 'success', CURRENT_TIMESTAMP, 0, 0, 0, ?)`,
+      [lead.id, lead.email, config.subject || 'Outlook Taslağı Hazırlandı', trackingUuid]
     );
     const logId = logRes.lastID;
 
-    const result = await mailer.openInNewOutlook(email, config, { trackingLogId: logId });
+    const result = await mailer.openInNewOutlook(email, config, { trackingLogId: trackingUuid, logId });
     await db.markLeadSent(lead.id, 'Outlook Taslağı Hazırlandı');
 
     const updatedLead = await db.getLeadById(lead.id);
@@ -595,9 +634,10 @@ app.post('/api/ai-hunter', async (req, res) => {
   }
 });
 
-// 14. Müşteri Listesi
+// 14. Müşteri Listesi (Uzak Depo Senkronizasyonlu)
 app.get('/api/leads', async (req, res) => {
   try {
+    await db.syncFromRemoteStore();
     const leads = await db.getAllLeads();
     res.json({ success: true, leads });
   } catch (err) {
@@ -631,9 +671,10 @@ app.delete('/api/leads/:id', async (req, res) => {
   }
 });
 
-// 17. Gönderim Logları
+// 17. Gönderim Logları (Uzak Depo Senkronizasyonlu)
 app.get('/api/logs', async (req, res) => {
   try {
+    await db.syncFromRemoteStore();
     const logs = await db.getEmailLogs(200);
     res.json({ success: true, logs });
   } catch (err) {
@@ -649,6 +690,19 @@ app.post('/api/logs/sync', async (req, res) => {
     const updatedLogs = await db.getEmailLogs(200);
     const updatedLeads = await db.getAllLeads();
     res.json({ success: true, logs: updatedLogs, leads: updatedLeads });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 19. Anlık Canlı Senkronizasyon (Mobil & Masaüstü Tek Tuşla Yenileme)
+app.get('/api/sync/refresh', async (req, res) => {
+  try {
+    await db.syncFromRemoteStore();
+    const stats = await db.getStats();
+    const leads = await db.getAllLeads();
+    const logs = await db.getEmailLogs(200);
+    res.json({ success: true, stats, leads, logs, refreshed_at: new Date().toISOString() });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

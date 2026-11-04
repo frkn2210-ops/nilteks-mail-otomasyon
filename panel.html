@@ -104,6 +104,12 @@
           <span>⚡ Modern Gönderim: mail.niltex.com.tr:587</span>
         </div>
 
+        <!-- Canlı Eşitle & Yenile Butonu (Mobil ve Masaüstü Senkronizasyonu) -->
+        <button id="globalSyncBtn" onclick="refreshAllData(true)" class="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-teal-400/60 shadow-sm transition" title="Tüm verileri uzak sunucuyla senkronize et">
+          <i id="globalSyncIcon" data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          <span>Yenile</span>
+        </button>
+
         <!-- Kendime Test Maili Gönder -->
         <button onclick="openTestModal()" class="flex items-center gap-1.5 bg-brand-700 hover:bg-brand-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-brand-500/50 shadow-sm transition">
           <i data-lucide="send" class="w-3.5 h-3.5"></i>
@@ -611,7 +617,7 @@
             </h3>
             <p class="text-xs text-slate-500">Sistem üzerinden başarıyla iletilen ve yeni hazırlanan tüm tanıtım mailleri</p>
           </div>
-          <button onclick="loadLogs()" class="p-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-600 transition flex items-center gap-1 text-xs font-semibold" title="Yenile">
+          <button onclick="refreshAllData(true)" class="p-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-600 transition flex items-center gap-1 text-xs font-semibold" title="Yenile">
             <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
             <span>Yenile</span>
           </button>
@@ -685,8 +691,9 @@
             </h2>
             <p class="text-xs text-slate-500">Sistem üzerinden iletilen tüm tanıtım e-postalarının geçmişi</p>
           </div>
-          <button onclick="loadLogs()" class="p-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-600 transition" title="Yenile">
-            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          <button onclick="refreshAllData(true)" class="p-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-600 transition flex items-center gap-1 text-xs font-semibold" title="Yenile">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>Yenile</span>
           </button>
         </div>
 
@@ -1692,9 +1699,9 @@
     }
 
     // ==========================================
-    // LOGLAR & GÖNDERİLMİŞ MAİLLER (KALICI YEREL HAFIZA & TAKİP)
+    // LOGLAR & GÖNDERİLMİŞ MAİLLER (MERKEZİ SUNUCU & KALICI HAFIZA)
     // ==========================================
-    const LOCAL_LOGS_KEY = 'nilteks_sent_logs_v2';
+    const LOCAL_LOGS_KEY = 'nilteks_sent_logs_v3';
 
     function getLocalLogs() {
       try {
@@ -1709,43 +1716,8 @@
       } catch {}
     }
 
-    function mergeLogs(serverLogs = []) {
-      const localLogs = getLocalLogs();
-      const map = new Map();
-
-      // Önce yerel verileri ekle
-      localLogs.forEach(l => {
-        const key = l.id ? `id_${l.id}` : `${l.email}_${l.sent_at}`;
-        map.set(key, l);
-      });
-
-      // Sunucudan gelenleri birleştir
-      serverLogs.forEach(s => {
-        const key = s.id ? `id_${s.id}` : `${s.email}_${s.sent_at}`;
-        const existing = map.get(key);
-        if (existing) {
-          map.set(key, {
-            ...existing,
-            ...s,
-            opened: Math.max(existing.opened || 0, s.opened || 0),
-            open_count: Math.max(existing.open_count || 0, s.open_count || 0),
-            pdf_clicked: Math.max(existing.pdf_clicked || 0, s.pdf_clicked || 0),
-            opened_at: s.opened_at || existing.opened_at,
-            pdf_clicked_at: s.pdf_clicked_at || existing.pdf_clicked_at,
-            clicked_catalogue: s.clicked_catalogue || existing.clicked_catalogue
-          });
-        } else {
-          map.set(key, s);
-        }
-      });
-
-      const merged = Array.from(map.values()).sort((a, b) => new Date(b.sent_at || 0) - new Date(a.sent_at || 0));
-      saveLocalLogs(merged);
-      return merged;
-    }
-
     async function loadLogs() {
-      // 1. Önce anında yerel önbellekten göster (Asla boş ekran görünmez)
+      // 1. Önce hızlı ilk gösterim için yerel önbellekten göster
       const cached = getLocalLogs();
       if (cached.length > 0) {
         renderLogsTable(cached);
@@ -1754,23 +1726,43 @@
       try {
         const res = await fetch('/api/logs');
         const data = await res.json();
-        if (data.success) {
-          const merged = mergeLogs(data.logs || []);
-          renderLogsTable(merged);
-
-          // Sunucuda eksik olan yerel logları sunucuya göndererek senkronize et
-          const serverKeys = new Set((data.logs || []).map(l => l.id ? `id_${l.id}` : `${l.email}_${l.sent_at}`));
-          const unsynced = cached.filter(l => !serverKeys.has(l.id ? `id_${l.id}` : `${l.email}_${l.sent_at}`));
-          if (unsynced.length > 0) {
-            fetch('/api/logs/sync', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ logs: unsynced })
-            }).catch(() => {});
-          }
+        if (data.success && Array.isArray(data.logs)) {
+          // Sunucu merkezi kesin gerçeklik kaynağıdır (Single Source of Truth)
+          saveLocalLogs(data.logs);
+          renderLogsTable(data.logs);
         }
       } catch (err) {
         console.warn('Logs load warning, using local cache:', err);
+      }
+    }
+
+    // Mobil & Masaüstü Canlı Senkronizasyon (Tüm Verileri Yenile)
+    async function refreshAllData(showFeedback = true) {
+      const syncIcon = document.getElementById('globalSyncIcon');
+      if (syncIcon) syncIcon.classList.add('animate-spin');
+
+      try {
+        const res = await fetch('/api/sync/refresh');
+        const data = await res.json();
+        if (data.success) {
+          if (data.stats) updateStats(data.stats);
+          if (data.leads) renderLeadsTable(data.leads);
+          if (data.logs && Array.isArray(data.logs)) {
+            saveLocalLogs(data.logs);
+            renderLogsTable(data.logs);
+          }
+          if (showFeedback) showToast('Tüm veriler ve takip durumları başarıyla eşitlendi.', 'success');
+        } else {
+          await Promise.all([checkSystemStatus(), loadLeads(), loadLogs()]);
+          if (showFeedback) showToast('Veriler güncellendi.', 'success');
+        }
+      } catch (err) {
+        await Promise.all([checkSystemStatus(), loadLeads(), loadLogs()]);
+        if (showFeedback) showToast('Veriler yenilendi.', 'info');
+      } finally {
+        if (syncIcon) {
+          setTimeout(() => syncIcon.classList.remove('animate-spin'), 600);
+        }
       }
     }
 
